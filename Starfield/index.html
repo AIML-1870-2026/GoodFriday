@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stellar-Web</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0a0a0f;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        .panel-container {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .panel {
+            background: rgba(20, 20, 30, 0.9);
+            border-radius: 12px;
+            border: 1px solid rgba(100, 140, 255, 0.3);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            min-width: 280px;
+            overflow: hidden;
+        }
+
+        .toolbar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .toolbar-header:hover {
+            background: rgba(100, 140, 255, 0.1);
+        }
+
+        .toolbar-header h2 {
+            color: #8ab4ff;
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin: 0;
+        }
+
+        .toolbar-toggle {
+            color: #5a8cff;
+            font-size: 1.2rem;
+            transition: transform 0.3s;
+        }
+
+        .panel.collapsed .toolbar-toggle,
+        .panel.collapsed .stats-toggle {
+            transform: rotate(180deg);
+        }
+
+        .toolbar-content,
+        .stats-content {
+            padding: 0 20px 20px;
+            max-height: 500px;
+            transition: max-height 0.3s ease, padding 0.3s ease, opacity 0.3s ease;
+            opacity: 1;
+        }
+
+        .panel.collapsed .toolbar-content,
+        .panel.collapsed .stats-content {
+            max-height: 0;
+            padding: 0 20px;
+            opacity: 0;
+            overflow: hidden;
+        }
+
+        .control-group {
+            margin-bottom: 18px;
+        }
+
+        .control-group label {
+            display: flex;
+            justify-content: space-between;
+            color: #aac4ff;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+
+        .control-group label span {
+            color: #5a8cff;
+            font-weight: bold;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(100, 140, 255, 0.2);
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #5a8cff;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(90, 140, 255, 0.5);
+            transition: transform 0.2s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #5a8cff;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 0 10px rgba(90, 140, 255, 0.5);
+        }
+
+
+        .stats-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .stats-header:hover {
+            background: rgba(100, 140, 255, 0.1);
+        }
+
+        .stats-header h2 {
+            color: #8ab4ff;
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin: 0;
+        }
+
+        .stats-toggle {
+            color: #5a8cff;
+            font-size: 1.2rem;
+            transition: transform 0.3s;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(100, 140, 255, 0.15);
+        }
+
+        .stat-row:last-child {
+            border-bottom: none;
+        }
+
+        .stat-label {
+            color: #aac4ff;
+            font-size: 0.85rem;
+        }
+
+        .stat-value {
+            color: #5a8cff;
+            font-weight: bold;
+            font-size: 0.95rem;
+            font-family: 'Courier New', monospace;
+        }
+
+        .toggle-group {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 18px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(100, 140, 255, 0.15);
+        }
+
+        .toggle-group label {
+            color: #aac4ff;
+            font-size: 0.9rem;
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: flex;
+            background: rgba(100, 140, 255, 0.2);
+            border-radius: 20px;
+            padding: 3px;
+        }
+
+        .toggle-option {
+            padding: 6px 12px;
+            font-size: 0.75rem;
+            color: #aac4ff;
+            cursor: pointer;
+            border-radius: 16px;
+            transition: all 0.3s ease;
+            user-select: none;
+        }
+
+        .toggle-option.active {
+            background: #5a8cff;
+            color: #0a0a0f;
+            font-weight: bold;
+        }
+
+        .toggle-option:hover:not(.active) {
+            background: rgba(100, 140, 255, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="panel-container">
+        <div class="panel" id="toolbar">
+            <div class="toolbar-header" id="toolbarHeader">
+                <h2>Stellar Controls</h2>
+                <span class="toolbar-toggle">▼</span>
+            </div>
+            <div class="toolbar-content">
+                <div class="control-group">
+                    <label>Node Speed <span id="speedValue">2</span></label>
+                    <input type="range" id="speed" min="0.1" max="5" step="0.1" value="2">
+                </div>
+
+                <div class="control-group">
+                    <label>Connectivity Radius <span id="radiusValue">150</span></label>
+                    <input type="range" id="radius" min="50" max="300" step="10" value="150">
+                </div>
+
+                <div class="control-group">
+                    <label>Node Count <span id="countValue">80</span></label>
+                    <input type="range" id="count" min="10" max="200" step="5" value="80">
+                </div>
+
+                <div class="control-group">
+                    <label>Node Size <span id="sizeValue">3</span></label>
+                    <input type="range" id="size" min="1" max="10" step="0.5" value="3">
+                </div>
+
+                <div class="control-group">
+                    <label>Edge Thickness <span id="thicknessValue">1</span></label>
+                    <input type="range" id="thickness" min="0.5" max="4" step="0.25" value="1">
+                </div>
+
+                <div class="toggle-group">
+                    <label>Mouse Mode</label>
+                    <div class="toggle-switch">
+                        <span class="toggle-option active" id="attractMode">Attract</span>
+                        <span class="toggle-option" id="repelMode">Repel</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel" id="statsPanel">
+            <div class="stats-header" id="statsHeader">
+                <h2>Network Stats</h2>
+                <span class="stats-toggle">▼</span>
+            </div>
+            <div class="stats-content">
+                <div class="stat-row">
+                    <span class="stat-label">Total Edges</span>
+                    <span class="stat-value" id="statEdges">0</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Avg Connections</span>
+                    <span class="stat-value" id="statAvgConn">0.00</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Network Density</span>
+                    <span class="stat-value" id="statDensity">0.00%</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height;
+        let particles = [];
+
+        // Settings
+        let settings = {
+            speed: 2,
+            radius: 150,
+            count: 80,
+            size: 3,
+            thickness: 1,
+            mouseMode: 'attract'  // 'attract' or 'repel'
+        };
+
+        // Mouse tracking
+        let mouse = {
+            x: null,
+            y: null,
+            radius: 150  // Influence radius
+        };
+
+        canvas.addEventListener('mousemove', (e) => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            mouse.x = null;
+            mouse.y = null;
+        });
+
+        // Resize canvas to fill window
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+
+        // Particle class
+        class Particle {
+            constructor() {
+                this.reset();
+            }
+
+            reset() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                this.z = Math.random();  // 0 = far, 1 = close
+                this.vx = (Math.random() - 0.5) * 2;
+                this.vy = (Math.random() - 0.5) * 2;
+                this.vz = (Math.random() - 0.5) * 0.01;  // Slow z movement
+                // Randomly assign shape: 'sparkle', 'circle', or 'star'
+                const shapes = ['sparkle', 'circle', 'star'];
+                this.shape = shapes[Math.floor(Math.random() * 3)];
+            }
+
+            update() {
+                const speedMultiplier = settings.speed;
+
+                // Mouse interaction
+                if (mouse.x !== null && mouse.y !== null) {
+                    const dx = this.x - mouse.x;
+                    const dy = this.y - mouse.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < mouse.radius && distance > 0) {
+                        const force = (mouse.radius - distance) / mouse.radius;
+                        const angle = Math.atan2(dy, dx);
+                        const strength = force * 0.5;
+
+                        if (settings.mouseMode === 'attract') {
+                            // Move toward mouse
+                            this.vx -= Math.cos(angle) * strength;
+                            this.vy -= Math.sin(angle) * strength;
+                        } else {
+                            // Move away from mouse
+                            this.vx += Math.cos(angle) * strength;
+                            this.vy += Math.sin(angle) * strength;
+                        }
+
+                        // Dampen velocity to prevent runaway speeds
+                        const maxSpeed = 4;
+                        const currentSpeed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+                        if (currentSpeed > maxSpeed) {
+                            this.vx = (this.vx / currentSpeed) * maxSpeed;
+                            this.vy = (this.vy / currentSpeed) * maxSpeed;
+                        }
+                    }
+                }
+
+                this.x += this.vx * speedMultiplier;
+                this.y += this.vy * speedMultiplier;
+                this.z += this.vz * speedMultiplier;
+
+                // Bounce off edges
+                if (this.x < 0 || this.x > width) this.vx *= -1;
+                if (this.y < 0 || this.y > height) this.vy *= -1;
+                if (this.z < 0 || this.z > 1) this.vz *= -1;
+
+                // Keep in bounds
+                this.x = Math.max(0, Math.min(width, this.x));
+                this.y = Math.max(0, Math.min(height, this.y));
+                this.z = Math.max(0, Math.min(1, this.z));
+            }
+
+            draw() {
+                // Scale size and opacity based on z-depth (0.4 to 1.0 range)
+                const depthScale = 0.4 + this.z * 0.6;
+                const depthOpacity = 0.3 + this.z * 0.7;
+                const size = settings.size * depthScale;
+
+                ctx.fillStyle = `rgba(138, 180, 255, ${depthOpacity})`;
+
+                if (this.shape === 'circle') {
+                    // Draw circle
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, size * 1.5, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Glow effect
+                    const gradient = ctx.createRadialGradient(
+                        this.x, this.y, 0,
+                        this.x, this.y, size * 3
+                    );
+                    gradient.addColorStop(0, `rgba(138, 180, 255, ${0.3 * depthOpacity})`);
+                    gradient.addColorStop(1, 'rgba(138, 180, 255, 0)');
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, size * 3, 0, Math.PI * 2);
+                    ctx.fillStyle = gradient;
+                    ctx.fill();
+
+                } else if (this.shape === 'star') {
+                    // Draw five-pointed star
+                    const outerRadius = size * 2.5;
+                    const innerRadius = size * 1.0;
+                    ctx.beginPath();
+                    for (let i = 0; i < 10; i++) {
+                        const angle = (i * Math.PI) / 5 - Math.PI / 2;
+                        const radius = i % 2 === 0 ? outerRadius : innerRadius;
+                        const x = this.x + Math.cos(angle) * radius;
+                        const y = this.y + Math.sin(angle) * radius;
+                        if (i === 0) {
+                            ctx.moveTo(x, y);
+                        } else {
+                            ctx.lineTo(x, y);
+                        }
+                    }
+                    ctx.closePath();
+                    ctx.fillStyle = `rgba(138, 180, 255, ${depthOpacity})`;
+                    ctx.fill();
+
+                    // Glow effect
+                    const gradient = ctx.createRadialGradient(
+                        this.x, this.y, 0,
+                        this.x, this.y, outerRadius * 2
+                    );
+                    gradient.addColorStop(0, `rgba(138, 180, 255, ${0.3 * depthOpacity})`);
+                    gradient.addColorStop(1, 'rgba(138, 180, 255, 0)');
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, outerRadius * 2, 0, Math.PI * 2);
+                    ctx.fillStyle = gradient;
+                    ctx.fill();
+
+                } else {
+                    // Draw four-pointed sparkle (default)
+                    const innerRadius = size * 1.0;
+                    const outerRadiusV = size * 2.8;
+                    const outerRadiusH = size * 1.6;
+
+                    ctx.beginPath();
+                    for (let i = 0; i < 8; i++) {
+                        const angle = (i * Math.PI) / 4 - Math.PI / 2;
+                        let radius;
+                        if (i % 2 === 1) {
+                            radius = innerRadius;
+                        } else if (i === 0 || i === 4) {
+                            radius = outerRadiusV;
+                        } else {
+                            radius = outerRadiusH;
+                        }
+                        const x = this.x + Math.cos(angle) * radius;
+                        const y = this.y + Math.sin(angle) * radius;
+                        if (i === 0) {
+                            ctx.moveTo(x, y);
+                        } else {
+                            ctx.lineTo(x, y);
+                        }
+                    }
+                    ctx.closePath();
+                    ctx.fillStyle = `rgba(138, 180, 255, ${depthOpacity})`;
+                    ctx.fill();
+
+                    // Glow effect
+                    const gradient = ctx.createRadialGradient(
+                        this.x, this.y, 0,
+                        this.x, this.y, outerRadiusV * 2
+                    );
+                    gradient.addColorStop(0, `rgba(138, 180, 255, ${0.3 * depthOpacity})`);
+                    gradient.addColorStop(1, 'rgba(138, 180, 255, 0)');
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, outerRadiusV * 2, 0, Math.PI * 2);
+                    ctx.fillStyle = gradient;
+                    ctx.fill();
+                }
+            }
+        }
+
+        // Initialize particles
+        function initParticles() {
+            particles = [];
+            for (let i = 0; i < settings.count; i++) {
+                particles.push(new Particle());
+            }
+        }
+
+        // Network statistics
+        let networkStats = {
+            edges: 0,
+            avgConnections: 0,
+            density: 0
+        };
+
+        // Draw connections between nearby particles
+        function drawConnections() {
+            let edgeCount = 0;
+
+            for (let i = 0; i < particles.length; i++) {
+                for (let j = i + 1; j < particles.length; j++) {
+                    const dx = particles[i].x - particles[j].x;
+                    const dy = particles[i].y - particles[j].y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < settings.radius) {
+                        edgeCount++;
+                        const opacity = 1 - (distance / settings.radius);
+                        // Average the z-depth of both particles for edge opacity
+                        const avgDepth = (particles[i].z + particles[j].z) / 2;
+                        const depthOpacity = 0.3 + avgDepth * 0.7;
+                        ctx.beginPath();
+                        ctx.moveTo(particles[i].x, particles[i].y);
+                        ctx.lineTo(particles[j].x, particles[j].y);
+                        ctx.strokeStyle = `rgba(90, 140, 255, ${opacity * 0.6 * depthOpacity})`;
+                        ctx.lineWidth = settings.thickness * (0.5 + avgDepth * 0.5);
+                        ctx.stroke();
+                    }
+                }
+            }
+
+            // Update network statistics
+            networkStats.edges = edgeCount;
+            const n = particles.length;
+            // Average connections per node (each edge connects 2 nodes)
+            networkStats.avgConnections = n > 0 ? (2 * edgeCount) / n : 0;
+            // Network density: actual edges / max possible edges
+            const maxEdges = (n * (n - 1)) / 2;
+            networkStats.density = maxEdges > 0 ? (edgeCount / maxEdges) * 100 : 0;
+        }
+
+        // Update stats display
+        function updateStatsDisplay() {
+            document.getElementById('statEdges').textContent = networkStats.edges;
+            document.getElementById('statAvgConn').textContent = networkStats.avgConnections.toFixed(2);
+            document.getElementById('statDensity').textContent = networkStats.density.toFixed(2) + '%';
+        }
+
+        // Animation loop
+        let frameCount = 0;
+        function animate() {
+            ctx.fillStyle = 'rgba(10, 10, 15, 0.2)';
+            ctx.fillRect(0, 0, width, height);
+
+            drawConnections();
+
+            particles.forEach(particle => {
+                particle.update();
+                particle.draw();
+            });
+
+            // Update stats display every 10 frames for performance
+            frameCount++;
+            if (frameCount % 10 === 0) {
+                updateStatsDisplay();
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        // Update particle count
+        function updateParticleCount(newCount) {
+            if (newCount > particles.length) {
+                for (let i = particles.length; i < newCount; i++) {
+                    particles.push(new Particle());
+                }
+            } else {
+                particles = particles.slice(0, newCount);
+            }
+        }
+
+        // Setup controls
+        function setupControls() {
+            const controls = {
+                speed: { element: document.getElementById('speed'), display: document.getElementById('speedValue') },
+                radius: { element: document.getElementById('radius'), display: document.getElementById('radiusValue') },
+                count: { element: document.getElementById('count'), display: document.getElementById('countValue') },
+                size: { element: document.getElementById('size'), display: document.getElementById('sizeValue') },
+                thickness: { element: document.getElementById('thickness'), display: document.getElementById('thicknessValue') }
+            };
+
+            Object.keys(controls).forEach(key => {
+                controls[key].element.addEventListener('input', (e) => {
+                    const value = parseFloat(e.target.value);
+                    settings[key] = value;
+                    controls[key].display.textContent = value;
+
+                    if (key === 'count') {
+                        updateParticleCount(value);
+                    }
+                });
+            });
+        }
+
+        // Setup collapsible panels
+        function setupPanels() {
+            // Stats panel toggle
+            const statsPanel = document.getElementById('statsPanel');
+            const statsHeader = document.getElementById('statsHeader');
+            statsHeader.addEventListener('click', () => {
+                statsPanel.classList.toggle('collapsed');
+            });
+
+            // Toolbar toggle
+            const toolbar = document.getElementById('toolbar');
+            const toolbarHeader = document.getElementById('toolbarHeader');
+            toolbarHeader.addEventListener('click', () => {
+                toolbar.classList.toggle('collapsed');
+            });
+        }
+
+        // Setup mouse mode toggle
+        function setupMouseToggle() {
+            const attractBtn = document.getElementById('attractMode');
+            const repelBtn = document.getElementById('repelMode');
+
+            attractBtn.addEventListener('click', () => {
+                settings.mouseMode = 'attract';
+                attractBtn.classList.add('active');
+                repelBtn.classList.remove('active');
+            });
+
+            repelBtn.addEventListener('click', () => {
+                settings.mouseMode = 'repel';
+                repelBtn.classList.add('active');
+                attractBtn.classList.remove('active');
+            });
+        }
+
+        // Initialize
+        window.addEventListener('resize', resize);
+        resize();
+        initParticles();
+        setupControls();
+        setupPanels();
+        setupMouseToggle();
+        animate();
+    </script>
+</body>
+</html>
