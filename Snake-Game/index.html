@@ -12,21 +12,37 @@
         }
 
         body {
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f0f23 100%);
+            background: #000;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            color: #fff;
+            color: #7dd3fc;
+            overflow: hidden;
+        }
+
+        #particleCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        h1, .game-container, .start-screen, .game-over, .info-panel {
+            position: relative;
+            z-index: 1;
         }
 
         h1 {
-            color: #4ade80;
+            color: #7dd3fc;
             font-size: 2.5rem;
             margin-bottom: 20px;
-            text-shadow: 0 0 20px rgba(74, 222, 128, 0.5);
+            text-shadow: 0 0 20px rgba(125, 211, 252, 0.5);
             letter-spacing: 3px;
         }
 
@@ -44,28 +60,67 @@
         }
 
         .score-item {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(125, 211, 252, 0.1);
             padding: 10px 25px;
             border-radius: 10px;
-            border: 1px solid rgba(74, 222, 128, 0.3);
+            border: 1px solid rgba(125, 211, 252, 0.3);
         }
 
         .score-item span {
-            color: #4ade80;
+            color: #7dd3fc;
             font-weight: bold;
             font-size: 1.4rem;
         }
 
-        canvas {
-            border: 3px solid #4ade80;
+        .power-up-display {
+            display: flex;
+            gap: 10px;
+            min-height: 36px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .power-up-indicator {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            animation: pulse 1s ease-in-out infinite;
+        }
+
+        .power-up-indicator.multiplier {
+            background: linear-gradient(135deg, #f59e0b, #fbbf24);
+            color: #1a1a2e;
+            box-shadow: 0 0 15px rgba(251, 191, 36, 0.5);
+        }
+
+        .power-up-indicator.slowmo {
+            background: linear-gradient(135deg, #3b82f6, #60a5fa);
+            color: #fff;
+            box-shadow: 0 0 15px rgba(96, 165, 250, 0.5);
+        }
+
+        .power-up-indicator.invincible {
+            background: linear-gradient(135deg, #a855f7, #c084fc);
+            color: #fff;
+            box-shadow: 0 0 15px rgba(192, 132, 252, 0.5);
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.9; }
+        }
+
+        canvas#gameCanvas {
+            border: 3px solid #38bdf8;
             border-radius: 10px;
-            box-shadow: 0 0 30px rgba(74, 222, 128, 0.3),
+            box-shadow: 0 0 30px rgba(56, 189, 248, 0.3),
                         inset 0 0 50px rgba(0, 0, 0, 0.5);
         }
 
         .controls {
             text-align: center;
-            color: #aaa;
+            color: #7dd3fc;
             font-size: 0.9rem;
         }
 
@@ -78,17 +133,17 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.9);
+            background: rgba(0, 0, 0, 0.95);
             padding: 40px 60px;
             border-radius: 20px;
-            border: 2px solid #ef4444;
+            border: 2px solid #f87171;
             text-align: center;
             display: none;
             z-index: 10;
         }
 
         .game-over h2 {
-            color: #ef4444;
+            color: #f87171;
             font-size: 2rem;
             margin-bottom: 15px;
         }
@@ -96,11 +151,12 @@
         .game-over p {
             font-size: 1.2rem;
             margin-bottom: 20px;
+            color: #7dd3fc;
         }
 
         .game-over button {
-            background: #4ade80;
-            color: #1a1a2e;
+            background: #38bdf8;
+            color: #000;
             border: none;
             padding: 12px 30px;
             font-size: 1.1rem;
@@ -111,9 +167,9 @@
         }
 
         .game-over button:hover {
-            background: #22c55e;
+            background: #7dd3fc;
             transform: scale(1.05);
-            box-shadow: 0 0 20px rgba(74, 222, 128, 0.5);
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.5);
         }
 
         .start-screen {
@@ -121,23 +177,23 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.9);
+            background: rgba(0, 0, 0, 0.95);
             padding: 40px 60px;
             border-radius: 20px;
-            border: 2px solid #4ade80;
+            border: 2px solid #38bdf8;
             text-align: center;
             z-index: 10;
         }
 
         .start-screen h2 {
-            color: #4ade80;
+            color: #7dd3fc;
             font-size: 2rem;
             margin-bottom: 20px;
         }
 
         .start-screen button {
-            background: #4ade80;
-            color: #1a1a2e;
+            background: #38bdf8;
+            color: #000;
             border: none;
             padding: 15px 40px;
             font-size: 1.2rem;
@@ -148,13 +204,141 @@
         }
 
         .start-screen button:hover {
-            background: #22c55e;
+            background: #7dd3fc;
             transform: scale(1.05);
-            box-shadow: 0 0 20px rgba(74, 222, 128, 0.5);
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.5);
+        }
+
+        .info-panel {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 20px;
+            border-radius: 15px;
+            border: 2px solid rgba(56, 189, 248, 0.4);
+            max-width: 280px;
+            font-size: 0.9rem;
+        }
+
+        .info-panel h3 {
+            color: #c084fc;
+            margin-bottom: 12px;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .info-panel .poison-icon {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            background: #9333ea;
+            border-radius: 50%;
+            position: relative;
+        }
+
+        .info-panel ul {
+            list-style: none;
+            color: #bae6fd;
+            margin-bottom: 20px;
+        }
+
+        .info-panel li {
+            margin-bottom: 8px;
+            padding-left: 15px;
+            position: relative;
+        }
+
+        .info-panel li::before {
+            content: "•";
+            color: #9333ea;
+            position: absolute;
+            left: 0;
+        }
+
+        .info-panel .penalty {
+            color: #f87171;
+            font-weight: bold;
+        }
+
+        .speed-control {
+            border-top: 1px solid rgba(56, 189, 248, 0.2);
+            padding-top: 15px;
+        }
+
+        .speed-control label {
+            display: block;
+            color: #7dd3fc;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .speed-control .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .speed-control input[type="range"] {
+            flex: 1;
+            -webkit-appearance: none;
+            appearance: none;
+            height: 8px;
+            background: linear-gradient(to right, #0ea5e9, #38bdf8);
+            border-radius: 4px;
+            outline: none;
+        }
+
+        .speed-control input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #fff;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+        }
+
+        .speed-control input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #fff;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+        }
+
+        .speed-control .speed-label {
+            color: #7dd3fc;
+            font-weight: bold;
+            min-width: 50px;
+            text-align: center;
+        }
+
+        .power-up-info {
+            border-top: 1px solid rgba(56, 189, 248, 0.2);
+            padding-top: 15px;
+            margin-top: 15px;
+        }
+
+        .power-up-info h4 {
+            color: #fbbf24;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+
+        .power-up-info p {
+            color: #bae6fd;
+            font-size: 0.8rem;
+            line-height: 1.4;
         }
     </style>
 </head>
 <body>
+    <canvas id="particleCanvas"></canvas>
     <h1>SNAKE GAME</h1>
 
     <div class="game-container">
@@ -162,6 +346,8 @@
             <div class="score-item">Score: <span id="score">0</span></div>
             <div class="score-item">High Score: <span id="highScore">0</span></div>
         </div>
+
+        <div class="power-up-display" id="powerUpDisplay"></div>
 
         <canvas id="gameCanvas" width="400" height="400"></canvas>
 
@@ -182,7 +368,133 @@
         <button onclick="restartGame()">Play Again</button>
     </div>
 
+    <div class="info-panel">
+        <h3><span class="poison-icon"></span> Poison Apples</h3>
+        <ul>
+            <li>Purple apples with skull faces are <strong>poison</strong></li>
+            <li>Eating one costs <span class="penalty">-30 points</span></li>
+            <li>Your snake <strong>shrinks</strong> by 2 segments</li>
+            <li>They move to new locations after being eaten</li>
+        </ul>
+
+        <div class="speed-control">
+            <label>Snake Speed</label>
+            <div class="slider-container">
+                <span style="color: #7dd3fc; font-size: 0.8rem;">Slow</span>
+                <input type="range" id="speedSlider" min="50" max="200" value="100">
+                <span style="color: #7dd3fc; font-size: 0.8rem;">Fast</span>
+            </div>
+            <div style="text-align: center; margin-top: 8px;">
+                <span class="speed-label" id="speedLabel">Normal</span>
+            </div>
+        </div>
+
+        <div class="power-up-info">
+            <h4>Hidden Power-Ups</h4>
+            <p>Some red apples contain secret power-ups! Look for the indicator when you eat one.</p>
+        </div>
+    </div>
+
     <script>
+        // Particle System
+        const particleCanvas = document.getElementById('particleCanvas');
+        const pCtx = particleCanvas.getContext('2d');
+        let particles = [];
+
+        function resizeParticleCanvas() {
+            particleCanvas.width = window.innerWidth;
+            particleCanvas.height = window.innerHeight;
+        }
+        resizeParticleCanvas();
+        window.addEventListener('resize', resizeParticleCanvas);
+
+        class Particle {
+            constructor() {
+                this.reset();
+            }
+
+            reset() {
+                this.x = Math.random() * particleCanvas.width;
+                this.y = Math.random() * particleCanvas.height;
+                this.size = Math.random() * 4 + 2;
+                this.speedX = (Math.random() - 0.5) * 0.8;
+                this.speedY = (Math.random() - 0.5) * 0.8;
+                this.opacity = Math.random() * 0.4 + 0.5;
+                this.pulse = Math.random() * Math.PI * 2;
+                this.pulseSpeed = Math.random() * 0.03 + 0.01;
+            }
+
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+                this.pulse += this.pulseSpeed;
+
+                if (this.x < 0 || this.x > particleCanvas.width ||
+                    this.y < 0 || this.y > particleCanvas.height) {
+                    this.reset();
+                }
+            }
+
+            draw() {
+                const currentOpacity = this.opacity * (0.7 + Math.sin(this.pulse) * 0.3);
+
+                // Draw glow
+                pCtx.beginPath();
+                pCtx.arc(this.x, this.y, this.size * 2, 0, Math.PI * 2);
+                const glowGradient = pCtx.createRadialGradient(
+                    this.x, this.y, 0,
+                    this.x, this.y, this.size * 2
+                );
+                glowGradient.addColorStop(0, `rgba(125, 211, 252, ${currentOpacity * 0.5})`);
+                glowGradient.addColorStop(1, 'rgba(125, 211, 252, 0)');
+                pCtx.fillStyle = glowGradient;
+                pCtx.fill();
+
+                // Draw core
+                pCtx.beginPath();
+                pCtx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                pCtx.fillStyle = `rgba(186, 230, 253, ${currentOpacity})`;
+                pCtx.fill();
+            }
+        }
+
+        // Create more particles
+        for (let i = 0; i < 150; i++) {
+            particles.push(new Particle());
+        }
+
+        function animateParticles() {
+            pCtx.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
+
+            // Draw connecting lines between close particles
+            for (let i = 0; i < particles.length; i++) {
+                for (let j = i + 1; j < particles.length; j++) {
+                    const dx = particles[i].x - particles[j].x;
+                    const dy = particles[i].y - particles[j].y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < 150) {
+                        const opacity = (1 - distance / 150) * 0.4;
+                        pCtx.beginPath();
+                        pCtx.moveTo(particles[i].x, particles[i].y);
+                        pCtx.lineTo(particles[j].x, particles[j].y);
+                        pCtx.strokeStyle = `rgba(56, 189, 248, ${opacity})`;
+                        pCtx.lineWidth = 1;
+                        pCtx.stroke();
+                    }
+                }
+            }
+
+            particles.forEach(particle => {
+                particle.update();
+                particle.draw();
+            });
+
+            requestAnimationFrame(animateParticles);
+        }
+        animateParticles();
+
+        // Game Canvas
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
@@ -190,15 +502,67 @@
         const tileCount = canvas.width / gridSize;
 
         let snake = [];
-        let food = { x: 0, y: 0 };
+        let food = { x: 0, y: 0, powerUp: null };
+        let poisonApples = [];
         let direction = { x: 0, y: 0 };
         let nextDirection = { x: 0, y: 0 };
         let score = 0;
         let highScore = localStorage.getItem('snakeHighScore') || 0;
         let gameLoop;
         let gameSpeed = 100;
+        let baseGameSpeed = 100;
         let isPaused = false;
         let isGameOver = false;
+
+        // Power-up state
+        const POWER_UP_TYPES = ['multiplier', 'slowmo', 'invincible'];
+        const POWER_UP_CHANCE = 0.25; // 25% chance an apple has a hidden power-up
+        const POWER_UP_DURATION = 8000; // 8 seconds
+        let activePowerUps = {
+            multiplier: { active: false, endTime: 0, value: 2 },
+            slowmo: { active: false, endTime: 0 },
+            invincible: { active: false, endTime: 0 }
+        };
+
+        // Poison apple settings
+        const POISON_APPLE_COUNT = 2;
+        const POISON_PENALTY = 30;
+
+        // Speed slider settings
+        let initialSpeed = 100;
+        const speedSlider = document.getElementById('speedSlider');
+        const speedLabel = document.getElementById('speedLabel');
+
+        function updateSpeedLabel(value) {
+            const speed = parseInt(value);
+            let label;
+            if (speed >= 170) label = 'Very Fast';
+            else if (speed >= 130) label = 'Fast';
+            else if (speed >= 80) label = 'Normal';
+            else if (speed >= 60) label = 'Slow';
+            else label = 'Very Slow';
+            speedLabel.textContent = label;
+        }
+
+        speedSlider.addEventListener('input', (e) => {
+            // Slider is inverted: low value = slow (high ms), high value = fast (low ms)
+            const sliderValue = parseInt(e.target.value);
+            // Map 50-200 slider to 200-40 ms (inverted)
+            initialSpeed = 250 - sliderValue;
+            updateSpeedLabel(sliderValue);
+
+            // Apply immediately if game is running
+            if (!isGameOver && !isPaused && gameLoop) {
+                baseGameSpeed = initialSpeed;
+                if (!activePowerUps.slowmo.active) {
+                    gameSpeed = baseGameSpeed;
+                    clearInterval(gameLoop);
+                    gameLoop = setInterval(gameStep, gameSpeed);
+                }
+            }
+        });
+
+        updateSpeedLabel(speedSlider.value);
 
         document.getElementById('highScore').textContent = highScore;
 
@@ -211,47 +575,183 @@
             direction = { x: 1, y: 0 };
             nextDirection = { x: 1, y: 0 };
             score = 0;
-            gameSpeed = 100;
+            gameSpeed = initialSpeed;
+            baseGameSpeed = initialSpeed;
             isPaused = false;
             isGameOver = false;
+            poisonApples = [];
+
+            // Reset power-ups
+            activePowerUps = {
+                multiplier: { active: false, endTime: 0, value: 2 },
+                slowmo: { active: false, endTime: 0 },
+                invincible: { active: false, endTime: 0 }
+            };
+            updatePowerUpDisplay();
+
             document.getElementById('score').textContent = score;
             placeFood();
+            placePoisonApples();
         }
 
-        function placeFood() {
+        function getValidPosition(excludePositions = []) {
             let validPosition = false;
-            while (!validPosition) {
-                food.x = Math.floor(Math.random() * tileCount);
-                food.y = Math.floor(Math.random() * tileCount);
+            let pos = { x: 0, y: 0 };
+            let attempts = 0;
 
+            while (!validPosition && attempts < 100) {
+                pos.x = Math.floor(Math.random() * tileCount);
+                pos.y = Math.floor(Math.random() * tileCount);
                 validPosition = true;
+                attempts++;
+
+                // Check snake
                 for (let segment of snake) {
-                    if (segment.x === food.x && segment.y === food.y) {
+                    if (segment.x === pos.x && segment.y === pos.y) {
                         validPosition = false;
                         break;
                     }
                 }
+
+                // Check excluded positions (food, other poison apples)
+                if (validPosition) {
+                    for (let excluded of excludePositions) {
+                        if (excluded.x === pos.x && excluded.y === pos.y) {
+                            validPosition = false;
+                            break;
+                        }
+                    }
+                }
+            }
+            return pos;
+        }
+
+        function placeFood() {
+            const excludePositions = [...poisonApples];
+            const pos = getValidPosition(excludePositions);
+            food.x = pos.x;
+            food.y = pos.y;
+
+            // Randomly assign a hidden power-up
+            if (Math.random() < POWER_UP_CHANCE) {
+                food.powerUp = POWER_UP_TYPES[Math.floor(Math.random() * POWER_UP_TYPES.length)];
+            } else {
+                food.powerUp = null;
+            }
+        }
+
+        function placePoisonApples() {
+            poisonApples = [];
+            const excludePositions = [food];
+
+            for (let i = 0; i < POISON_APPLE_COUNT; i++) {
+                const pos = getValidPosition([...excludePositions, ...poisonApples]);
+                poisonApples.push({ x: pos.x, y: pos.y });
+            }
+        }
+
+        function activatePowerUp(type) {
+            const now = Date.now();
+            activePowerUps[type].active = true;
+            activePowerUps[type].endTime = now + POWER_UP_DURATION;
+
+            if (type === 'slowmo') {
+                // Slow down the game
+                gameSpeed = baseGameSpeed * 1.8;
+                clearInterval(gameLoop);
+                gameLoop = setInterval(gameStep, gameSpeed);
+            }
+
+            updatePowerUpDisplay();
+        }
+
+        function updatePowerUps() {
+            const now = Date.now();
+            let needsSpeedUpdate = false;
+
+            for (let type of POWER_UP_TYPES) {
+                if (activePowerUps[type].active && now >= activePowerUps[type].endTime) {
+                    activePowerUps[type].active = false;
+
+                    if (type === 'slowmo') {
+                        needsSpeedUpdate = true;
+                    }
+
+                    updatePowerUpDisplay();
+                }
+            }
+
+            if (needsSpeedUpdate) {
+                // Restore normal speed
+                clearInterval(gameLoop);
+                gameLoop = setInterval(gameStep, baseGameSpeed);
+            }
+        }
+
+        function updatePowerUpDisplay() {
+            const display = document.getElementById('powerUpDisplay');
+            display.innerHTML = '';
+
+            const now = Date.now();
+
+            if (activePowerUps.multiplier.active) {
+                const remaining = Math.ceil((activePowerUps.multiplier.endTime - now) / 1000);
+                const indicator = document.createElement('div');
+                indicator.className = 'power-up-indicator multiplier';
+                indicator.textContent = `2x SCORE (${remaining}s)`;
+                display.appendChild(indicator);
+            }
+
+            if (activePowerUps.slowmo.active) {
+                const remaining = Math.ceil((activePowerUps.slowmo.endTime - now) / 1000);
+                const indicator = document.createElement('div');
+                indicator.className = 'power-up-indicator slowmo';
+                indicator.textContent = `SLOW-MO (${remaining}s)`;
+                display.appendChild(indicator);
+            }
+
+            if (activePowerUps.invincible.active) {
+                const remaining = Math.ceil((activePowerUps.invincible.endTime - now) / 1000);
+                const indicator = document.createElement('div');
+                indicator.className = 'power-up-indicator invincible';
+                indicator.textContent = `INVINCIBLE (${remaining}s)`;
+                display.appendChild(indicator);
             }
         }
 
         function update() {
             if (isPaused || isGameOver) return;
 
+            // Update power-up timers
+            updatePowerUps();
+
             direction = { ...nextDirection };
 
             const head = { x: snake[0].x + direction.x, y: snake[0].y + direction.y };
 
+            const isInvincible = activePowerUps.invincible.active;
+
             // Check wall collision
             if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) {
-                endGame();
-                return;
+                if (isInvincible) {
+                    // Wrap around instead of dying
+                    if (head.x < 0) head.x = tileCount - 1;
+                    if (head.x >= tileCount) head.x = 0;
+                    if (head.y < 0) head.y = tileCount - 1;
+                    if (head.y >= tileCount) head.y = 0;
+                } else {
+                    endGame();
+                    return;
+                }
             }
 
             // Check self collision
-            for (let segment of snake) {
-                if (head.x === segment.x && head.y === segment.y) {
-                    endGame();
-                    return;
+            if (!isInvincible) {
+                for (let segment of snake) {
+                    if (head.x === segment.x && head.y === segment.y) {
+                        endGame();
+                        return;
+                    }
                 }
             }
 
@@ -259,28 +759,70 @@
 
             // Check food collision
             if (head.x === food.x && head.y === food.y) {
-                score += 10;
+                let points = 10;
+
+                // Apply multiplier if active
+                if (activePowerUps.multiplier.active) {
+                    points *= activePowerUps.multiplier.value;
+                }
+
+                score += points;
                 document.getElementById('score').textContent = score;
+
+                // Activate hidden power-up if present
+                if (food.powerUp) {
+                    activatePowerUp(food.powerUp);
+                }
+
                 placeFood();
 
+                // Reposition poison apples occasionally
+                if (Math.random() < 0.3) {
+                    placePoisonApples();
+                }
+
                 // Speed up slightly
-                if (gameSpeed > 50) {
-                    gameSpeed -= 2;
-                    clearInterval(gameLoop);
-                    gameLoop = setInterval(gameStep, gameSpeed);
+                if (baseGameSpeed > 50) {
+                    baseGameSpeed -= 2;
+                    if (!activePowerUps.slowmo.active) {
+                        gameSpeed = baseGameSpeed;
+                        clearInterval(gameLoop);
+                        gameLoop = setInterval(gameStep, gameSpeed);
+                    }
                 }
             } else {
                 snake.pop();
+            }
+
+            // Check poison apple collision
+            for (let i = 0; i < poisonApples.length; i++) {
+                if (head.x === poisonApples[i].x && head.y === poisonApples[i].y) {
+                    // Penalty for eating poison
+                    score = Math.max(0, score - POISON_PENALTY);
+                    document.getElementById('score').textContent = score;
+
+                    // Shrink snake (but keep at least 2 segments)
+                    if (snake.length > 2) {
+                        snake.pop();
+                        snake.pop();
+                    }
+
+                    // Move this poison apple to new location
+                    const excludePositions = [food, ...poisonApples.filter((_, idx) => idx !== i)];
+                    const newPos = getValidPosition(excludePositions);
+                    poisonApples[i] = { x: newPos.x, y: newPos.y };
+                    break;
+                }
             }
         }
 
         function draw() {
             // Clear canvas
-            ctx.fillStyle = '#0a0a1a';
+            ctx.fillStyle = '#000';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Draw grid (subtle)
-            ctx.strokeStyle = 'rgba(74, 222, 128, 0.1)';
+            // Draw grid (subtle light blue)
+            ctx.strokeStyle = 'rgba(56, 189, 248, 0.1)';
             ctx.lineWidth = 0.5;
             for (let i = 0; i <= tileCount; i++) {
                 ctx.beginPath();
@@ -293,7 +835,7 @@
                 ctx.stroke();
             }
 
-            // Draw food with glow
+            // Draw food (regular apple) with glow
             ctx.shadowColor = '#ef4444';
             ctx.shadowBlur = 15;
             ctx.fillStyle = '#ef4444';
@@ -306,9 +848,66 @@
                 Math.PI * 2
             );
             ctx.fill();
+
+            // Draw stem on regular apple
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = '#65a30d';
+            ctx.fillRect(
+                food.x * gridSize + gridSize / 2 - 1,
+                food.y * gridSize + 2,
+                2,
+                4
+            );
+
+            // Draw poison apples (purple with skull marking)
+            for (let poison of poisonApples) {
+                const px = poison.x * gridSize + gridSize / 2;
+                const py = poison.y * gridSize + gridSize / 2;
+
+                // Purple glow
+                ctx.shadowColor = '#9333ea';
+                ctx.shadowBlur = 15;
+
+                // Main body - purple
+                ctx.fillStyle = '#9333ea';
+                ctx.beginPath();
+                ctx.arc(px, py, gridSize / 2 - 2, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.shadowBlur = 0;
+
+                // Skull face - white
+                ctx.fillStyle = '#e9d5ff';
+
+                // Skull eye sockets
+                ctx.beginPath();
+                ctx.arc(px - 4, py - 2, 2.5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(px + 4, py - 2, 2.5, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Skull nose
+                ctx.fillStyle = '#7c3aed';
+                ctx.beginPath();
+                ctx.moveTo(px, py + 1);
+                ctx.lineTo(px - 2, py + 4);
+                ctx.lineTo(px + 2, py + 4);
+                ctx.closePath();
+                ctx.fill();
+
+                // Drip effect (poison)
+                ctx.fillStyle = '#a855f7';
+                ctx.beginPath();
+                ctx.ellipse(px + 5, py + gridSize / 2 - 1, 2, 3, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
             ctx.shadowBlur = 0;
 
             // Draw snake
+            const isInvincible = activePowerUps.invincible.active;
+
             snake.forEach((segment, index) => {
                 const isHead = index === 0;
 
@@ -320,16 +919,23 @@
                     segment.y * gridSize + gridSize
                 );
 
-                if (isHead) {
-                    ctx.shadowColor = '#4ade80';
+                if (isInvincible) {
+                    // Rainbow glow when invincible
+                    ctx.shadowColor = '#c084fc';
+                    ctx.shadowBlur = 15;
+                    const hue = (Date.now() / 20 + index * 10) % 360;
+                    gradient.addColorStop(0, `hsl(${hue}, 80%, 60%)`);
+                    gradient.addColorStop(1, `hsl(${(hue + 30) % 360}, 80%, 50%)`);
+                } else if (isHead) {
+                    ctx.shadowColor = '#38bdf8';
                     ctx.shadowBlur = 10;
-                    gradient.addColorStop(0, '#4ade80');
-                    gradient.addColorStop(1, '#22c55e');
+                    gradient.addColorStop(0, '#7dd3fc');
+                    gradient.addColorStop(1, '#38bdf8');
                 } else {
                     ctx.shadowBlur = 0;
                     const alpha = 1 - (index / snake.length) * 0.5;
-                    gradient.addColorStop(0, `rgba(74, 222, 128, ${alpha})`);
-                    gradient.addColorStop(1, `rgba(34, 197, 94, ${alpha})`);
+                    gradient.addColorStop(0, `rgba(125, 211, 252, ${alpha})`);
+                    gradient.addColorStop(1, `rgba(56, 189, 248, ${alpha})`);
                 }
 
                 ctx.fillStyle = gradient;
@@ -390,6 +996,10 @@
         function gameStep() {
             update();
             draw();
+            // Update power-up display timers
+            if (activePowerUps.multiplier.active || activePowerUps.slowmo.active || activePowerUps.invincible.active) {
+                updatePowerUpDisplay();
+            }
         }
 
         function endGame() {
