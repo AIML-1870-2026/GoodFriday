@@ -1,0 +1,1154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boids Project</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            display: flex;
+            min-height: 100vh;
+            background: #0a0a0f;
+            color: #c8c8d4;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+
+        /* ---------- Simulation Window ---------- */
+        #sim-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 18px;
+            position: relative;
+        }
+
+        canvas {
+            display: block;
+            border: 1px solid #2a2a3a;
+            border-radius: 8px;
+            background: #06060c;
+        }
+
+        /* ---------- Side Panel ---------- */
+        #panel {
+            width: 290px;
+            background: #111120;
+            border-left: 1px solid #2a2a3a;
+            padding: 20px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            overflow-y: auto;
+        }
+
+        #panel h2 {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1.6px;
+            color: #7a7aaf;
+            border-bottom: 1px solid #222238;
+            padding-bottom: 5px;
+            margin: 0;
+        }
+
+        /* --- Sliders --- */
+        .slider-group { display: flex; flex-direction: column; gap: 8px; }
+
+        .slider-row {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .slider-row label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #9999b8;
+        }
+
+        .slider-row label span { color: #b8b8e0; font-weight: 600; }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 4px;
+            border-radius: 2px;
+            background: #222240;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #6666bb;
+            cursor: pointer;
+            border: 2px solid #8888dd;
+        }
+
+        /* --- Buttons (shared) --- */
+        .preset-group, .action-group, .mode-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .preset-btn {
+            padding: 7px 10px;
+            border: 1px solid #2a2a4a;
+            border-radius: 6px;
+            background: #16162a;
+            color: #aaaace;
+            cursor: pointer;
+            font-size: 11px;
+            text-align: left;
+            transition: background 0.15s, border-color 0.15s;
+        }
+
+        .preset-btn:hover {
+            background: #20203c;
+            border-color: #4a4a7a;
+        }
+
+        .preset-btn strong {
+            display: block;
+            font-size: 12px;
+            color: #c0c0ee;
+            margin-bottom: 1px;
+        }
+
+        .preset-btn small {
+            color: #6666aa;
+            font-size: 10px;
+        }
+
+        /* --- Mode selector buttons --- */
+        .mode-row {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+
+        .mode-btn {
+            flex: 1;
+            min-width: 56px;
+            padding: 7px 4px;
+            border: 1px solid #2a2a4a;
+            border-radius: 6px;
+            background: #16162a;
+            color: #8888aa;
+            cursor: pointer;
+            font-size: 10px;
+            font-weight: 600;
+            text-align: center;
+            transition: all 0.15s;
+        }
+
+        .mode-btn:hover {
+            background: #20203c;
+            border-color: #4a4a7a;
+        }
+
+        .mode-btn.active {
+            background: #282850;
+            border-color: #6666bb;
+            color: #d0d0ff;
+            box-shadow: 0 0 8px rgba(100, 100, 200, 0.2);
+        }
+
+        .mode-hint {
+            font-size: 10px;
+            color: #555577;
+            font-style: italic;
+            margin-top: 2px;
+        }
+
+        /* --- Stats --- */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
+
+        .stat-box {
+            background: #12122a;
+            border: 1px solid #222240;
+            border-radius: 6px;
+            padding: 6px 8px;
+            text-align: center;
+        }
+
+        .stat-box .stat-label {
+            font-size: 9px;
+            color: #6666aa;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+
+        .stat-box .stat-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: #b0b0ee;
+            margin-top: 1px;
+        }
+
+        /* --- Action Buttons --- */
+        .action-row {
+            display: flex;
+            gap: 5px;
+        }
+
+        .action-btn {
+            flex: 1;
+            padding: 8px 0;
+            border: 1px solid #2a2a4a;
+            border-radius: 6px;
+            background: #16162a;
+            color: #aaaace;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 600;
+            transition: background 0.15s, border-color 0.15s;
+        }
+
+        .action-btn:hover {
+            background: #20203c;
+            border-color: #4a4a7a;
+        }
+
+        .action-btn.active {
+            background: #282850;
+            border-color: #5555aa;
+            color: #d0d0ff;
+        }
+
+        /* --- Toggle rows --- */
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 44px;
+            height: 22px;
+            flex-shrink: 0;
+        }
+
+        .toggle-switch input { display: none; }
+
+        .toggle-slider {
+            position: absolute;
+            inset: 0;
+            background: #222240;
+            border-radius: 11px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .toggle-slider::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            left: 3px;
+            top: 3px;
+            background: #6666aa;
+            border-radius: 50%;
+            transition: transform 0.2s;
+        }
+
+        .toggle-switch input:checked + .toggle-slider {
+            background: #3a3a70;
+        }
+
+        .toggle-switch input:checked + .toggle-slider::after {
+            transform: translateX(22px);
+            background: #8888dd;
+        }
+
+        .toggle-labels {
+            display: flex;
+            flex-direction: column;
+            font-size: 11px;
+        }
+
+        .toggle-labels .active-label { color: #b0b0ee; font-weight: 600; }
+        .toggle-labels .inactive-label { color: #444466; }
+
+        /* Species color dots */
+        .species-legend {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 4px;
+        }
+
+        .species-dot {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 10px;
+            color: #8888aa;
+        }
+
+        .species-dot .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Simulation -->
+<div id="sim-container">
+    <canvas id="canvas"></canvas>
+</div>
+
+<!-- Control Panel -->
+<div id="panel">
+
+    <h2>Controls</h2>
+
+    <div class="slider-group">
+        <div class="slider-row">
+            <label>Separation <span id="val-sep">1.5</span></label>
+            <input type="range" id="sl-sep" min="0" max="5" step="0.1" value="1.5">
+        </div>
+        <div class="slider-row">
+            <label>Alignment <span id="val-ali">1.0</span></label>
+            <input type="range" id="sl-ali" min="0" max="5" step="0.1" value="1.0">
+        </div>
+        <div class="slider-row">
+            <label>Cohesion <span id="val-coh">1.0</span></label>
+            <input type="range" id="sl-coh" min="0" max="5" step="0.1" value="1.0">
+        </div>
+        <div class="slider-row">
+            <label>Neighbor Radius <span id="val-rad">80</span></label>
+            <input type="range" id="sl-rad" min="20" max="200" step="5" value="80">
+        </div>
+        <div class="slider-row">
+            <label>Max Speed <span id="val-spd">4.0</span></label>
+            <input type="range" id="sl-spd" min="1" max="10" step="0.5" value="4.0">
+        </div>
+    </div>
+
+    <h2>Presets</h2>
+
+    <div class="preset-group">
+        <button class="preset-btn" id="pre-school">
+            <strong>Schooling</strong>
+            <small>High alignment &middot; Medium cohesion &middot; Low separation</small>
+        </button>
+        <button class="preset-btn" id="pre-chaos">
+            <strong>Chaos</strong>
+            <small>Low alignment &middot; Low cohesion &middot; Small radius</small>
+        </button>
+        <button class="preset-btn" id="pre-factions">
+            <strong>Factions</strong>
+            <small>High cohesion &middot; Moderate separation</small>
+        </button>
+    </div>
+
+    <h2>Mouse Tool</h2>
+
+    <div class="mode-group">
+        <div class="mode-row">
+            <button class="mode-btn active" data-mode="spawn">Spawn</button>
+            <button class="mode-btn" data-mode="attract">Attract</button>
+            <button class="mode-btn" data-mode="repel">Repel</button>
+            <button class="mode-btn" data-mode="obstacle">Obstacle</button>
+        </div>
+        <div class="mode-hint" id="mode-hint">Click canvas to spawn boids</div>
+        <div class="slider-row" id="mouse-force-row">
+            <label>Mouse Force <span id="val-mforce">3.0</span></label>
+            <input type="range" id="sl-mforce" min="0.5" max="10" step="0.5" value="3.0">
+        </div>
+    </div>
+
+    <h2>Species</h2>
+
+    <div class="toggle-row">
+        <label class="toggle-switch">
+            <input type="checkbox" id="tgl-species">
+            <div class="toggle-slider"></div>
+        </label>
+        <div class="toggle-labels">
+            <span id="sp-off" class="active-label">Uniform</span>
+            <span id="sp-on" class="inactive-label">Species</span>
+        </div>
+    </div>
+    <div class="slider-row" id="species-count-row" style="display:none;">
+        <label>Species Count <span id="val-scount">3</span></label>
+        <input type="range" id="sl-scount" min="2" max="6" step="1" value="3">
+    </div>
+    <div class="species-legend" id="species-legend" style="display:none;"></div>
+
+    <h2>Obstacles</h2>
+
+    <div class="action-group">
+        <div class="action-row">
+            <button class="action-btn" id="btn-clear-obs">Clear Obstacles</button>
+        </div>
+        <div class="slider-row">
+            <label>Obstacle Radius <span id="val-orad">30</span></label>
+            <input type="range" id="sl-orad" min="10" max="80" step="5" value="30">
+        </div>
+        <div class="slider-row">
+            <label>Avoidance Strength <span id="val-ostr">2.0</span></label>
+            <input type="range" id="sl-ostr" min="0.5" max="5" step="0.5" value="2.0">
+        </div>
+    </div>
+
+    <h2>Stats</h2>
+
+    <div class="stats-grid">
+        <div class="stat-box">
+            <div class="stat-label">FPS</div>
+            <div class="stat-value" id="st-fps">0</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Boids</div>
+            <div class="stat-value" id="st-count">0</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Avg Speed</div>
+            <div class="stat-value" id="st-speed">0</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Avg Neighbors</div>
+            <div class="stat-value" id="st-neigh">0</div>
+        </div>
+    </div>
+
+    <h2>Boundary</h2>
+
+    <div class="toggle-row">
+        <label class="toggle-switch">
+            <input type="checkbox" id="tgl-boundary">
+            <div class="toggle-slider"></div>
+        </label>
+        <div class="toggle-labels">
+            <span id="bl-wrap" class="active-label">Wrap</span>
+            <span id="bl-bounce" class="inactive-label">Bounce</span>
+        </div>
+    </div>
+
+    <h2>Actions</h2>
+
+    <div class="action-group">
+        <div class="action-row">
+            <button class="action-btn" id="btn-pause">Pause</button>
+            <button class="action-btn" id="btn-reset">Reset</button>
+        </div>
+    </div>
+</div>
+
+<script>
+/* ============================
+   SETUP
+   ============================ */
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+function sizeCanvas() {
+    const container = document.getElementById('sim-container');
+    canvas.width = container.clientWidth - 36;
+    canvas.height = container.clientHeight - 36;
+}
+sizeCanvas();
+window.addEventListener('resize', sizeCanvas);
+
+/* ============================
+   PARAMS
+   ============================ */
+const params = {
+    separation: 1.5,
+    alignment: 1.0,
+    cohesion: 1.0,
+    neighborRadius: 80,
+    maxSpeed: 4.0,
+    maxForce: 0.15,
+    boundaryMode: 'wrap',
+    boidCount: 150,
+    mouseMode: 'spawn',       // spawn | attract | repel | obstacle
+    mouseForce: 3.0,
+    speciesEnabled: false,
+    speciesCount: 3,
+    obstacleRadius: 30,
+    obstacleStrength: 2.0
+};
+
+let paused = false;
+
+/* ============================
+   SPECIES COLORS
+   ============================ */
+const SPECIES_PALETTES = [
+    { base: [120, 160, 255], glow: 'rgba(120,160,255,0.5)', name: 'Blue' },
+    { base: [255, 120, 140], glow: 'rgba(255,120,140,0.5)', name: 'Red' },
+    { base: [120, 255, 180], glow: 'rgba(120,255,180,0.5)', name: 'Green' },
+    { base: [255, 210, 100], glow: 'rgba(255,210,100,0.5)', name: 'Gold' },
+    { base: [210, 130, 255], glow: 'rgba(210,130,255,0.5)', name: 'Purple' },
+    { base: [100, 240, 240], glow: 'rgba(100,240,240,0.5)', name: 'Cyan' }
+];
+
+/* ============================
+   BOID CLASS
+   ============================ */
+class Boid {
+    constructor(x, y, species) {
+        this.x = x;
+        this.y = y;
+        this.species = species || 0;
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 1 + Math.random() * 2;
+        this.vx = Math.cos(angle) * speed;
+        this.vy = Math.sin(angle) * speed;
+        this.ax = 0;
+        this.ay = 0;
+        this.neighborCount = 0;
+    }
+
+    applyForce(fx, fy) {
+        this.ax += fx;
+        this.ay += fy;
+    }
+
+    update() {
+        this.vx += this.ax;
+        this.vy += this.ay;
+
+        const spd = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+        if (spd > params.maxSpeed) {
+            this.vx = (this.vx / spd) * params.maxSpeed;
+            this.vy = (this.vy / spd) * params.maxSpeed;
+        }
+
+        this.x += this.vx;
+        this.y += this.vy;
+
+        this.ax = 0;
+        this.ay = 0;
+
+        if (params.boundaryMode === 'wrap') {
+            if (this.x < 0) this.x += canvas.width;
+            if (this.x > canvas.width) this.x -= canvas.width;
+            if (this.y < 0) this.y += canvas.height;
+            if (this.y > canvas.height) this.y -= canvas.height;
+        } else {
+            const margin = 6;
+            if (this.x < margin) { this.x = margin; this.vx *= -1; }
+            if (this.x > canvas.width - margin) { this.x = canvas.width - margin; this.vx *= -1; }
+            if (this.y < margin) { this.y = margin; this.vy *= -1; }
+            if (this.y > canvas.height - margin) { this.y = canvas.height - margin; this.vy *= -1; }
+        }
+    }
+
+    draw() {
+        const angle = Math.atan2(this.vy, this.vx);
+        const size = 5;
+
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(angle);
+
+        // Star shape (4-pointed)
+        ctx.beginPath();
+        for (let i = 0; i < 8; i++) {
+            const r = i % 2 === 0 ? size : size * 0.4;
+            const a = (i * Math.PI) / 4 - Math.PI / 2;
+            const sx = Math.cos(a) * r;
+            const sy = Math.sin(a) * r;
+            if (i === 0) ctx.moveTo(sx, sy);
+            else ctx.lineTo(sx, sy);
+        }
+        ctx.closePath();
+
+        if (params.speciesEnabled) {
+            const pal = SPECIES_PALETTES[this.species % SPECIES_PALETTES.length];
+            const spd = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+            const t = Math.min(spd / params.maxSpeed, 1);
+            const cr = Math.floor(pal.base[0] * 0.6 + pal.base[0] * 0.4 * t);
+            const cg = Math.floor(pal.base[1] * 0.6 + pal.base[1] * 0.4 * t);
+            const cb = Math.floor(pal.base[2] * 0.6 + pal.base[2] * 0.4 * t);
+            ctx.fillStyle = `rgb(${cr},${cg},${cb})`;
+            ctx.shadowColor = pal.glow;
+            ctx.shadowBlur = 4;
+        } else {
+            const spd = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+            const t = Math.min(spd / params.maxSpeed, 1);
+            const cr = Math.floor(140 + t * 80);
+            const cg = Math.floor(140 + t * 60);
+            const cb = Math.floor(200 + t * 55);
+            ctx.fillStyle = `rgb(${cr},${cg},${cb})`;
+            ctx.shadowColor = `rgba(${cr},${cg},${cb},0.5)`;
+            ctx.shadowBlur = 4;
+        }
+
+        ctx.fill();
+        ctx.restore();
+    }
+}
+
+/* ============================
+   OBSTACLES
+   ============================ */
+let obstacles = [];
+
+function drawObstacles() {
+    for (const obs of obstacles) {
+        // Outer glow ring
+        ctx.beginPath();
+        ctx.arc(obs.x, obs.y, obs.r, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(255, 80, 80, 0.3)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Inner fill
+        ctx.beginPath();
+        ctx.arc(obs.x, obs.y, obs.r, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255, 50, 50, 0.08)';
+        ctx.fill();
+
+        // Center dot
+        ctx.beginPath();
+        ctx.arc(obs.x, obs.y, 3, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255, 80, 80, 0.6)';
+        ctx.fill();
+
+        // X marker
+        ctx.strokeStyle = 'rgba(255, 80, 80, 0.35)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(obs.x - 6, obs.y - 6);
+        ctx.lineTo(obs.x + 6, obs.y + 6);
+        ctx.moveTo(obs.x + 6, obs.y - 6);
+        ctx.lineTo(obs.x - 6, obs.y + 6);
+        ctx.stroke();
+    }
+}
+
+/* ============================
+   FLOCK LOGIC
+   ============================ */
+let flock = [];
+
+function initFlock() {
+    flock = [];
+    for (let i = 0; i < params.boidCount; i++) {
+        const species = params.speciesEnabled ? (i % params.speciesCount) : 0;
+        flock.push(new Boid(
+            Math.random() * canvas.width,
+            Math.random() * canvas.height,
+            species
+        ));
+    }
+}
+initFlock();
+
+function distWrapped(ax, ay, bx, by) {
+    let dx = bx - ax;
+    let dy = by - ay;
+    if (params.boundaryMode === 'wrap') {
+        if (Math.abs(dx) > canvas.width / 2) dx -= Math.sign(dx) * canvas.width;
+        if (Math.abs(dy) > canvas.height / 2) dy -= Math.sign(dy) * canvas.height;
+    }
+    return { dx, dy, dist: Math.sqrt(dx * dx + dy * dy) };
+}
+
+function steer(boid, tx, ty) {
+    let dx = tx - boid.vx;
+    let dy = ty - boid.vy;
+    const mag = Math.sqrt(dx * dx + dy * dy);
+    if (mag > params.maxForce) {
+        dx = (dx / mag) * params.maxForce;
+        dy = (dy / mag) * params.maxForce;
+    }
+    return { fx: dx, fy: dy };
+}
+
+function applyFlockingRules() {
+    const r = params.neighborRadius;
+
+    for (let i = 0; i < flock.length; i++) {
+        const b = flock[i];
+
+        let sepX = 0, sepY = 0, sepCount = 0;
+        let aliX = 0, aliY = 0, aliCount = 0;
+        let cohX = 0, cohY = 0, cohCount = 0;
+
+        for (let j = 0; j < flock.length; j++) {
+            if (i === j) continue;
+            const other = flock[j];
+            const { dx, dy, dist } = distWrapped(b.x, b.y, other.x, other.y);
+
+            if (dist < r && dist > 0) {
+                // Species check: if species mode on, only align/cohere with same species
+                const sameSpecies = !params.speciesEnabled || b.species === other.species;
+
+                // Separation applies to ALL boids regardless of species
+                const invDist = 1 / dist;
+                sepX -= dx * invDist;
+                sepY -= dy * invDist;
+                sepCount++;
+
+                if (sameSpecies) {
+                    // Alignment — only same species
+                    aliX += other.vx;
+                    aliY += other.vy;
+                    aliCount++;
+
+                    // Cohesion — only same species
+                    cohX += b.x + dx;
+                    cohY += b.y + dy;
+                    cohCount++;
+                }
+            }
+        }
+
+        b.neighborCount = aliCount;
+
+        // Separation
+        if (sepCount > 0) {
+            sepX /= sepCount;
+            sepY /= sepCount;
+            const mag = Math.sqrt(sepX * sepX + sepY * sepY);
+            if (mag > 0) {
+                sepX = (sepX / mag) * params.maxSpeed;
+                sepY = (sepY / mag) * params.maxSpeed;
+            }
+            const s = steer(b, sepX, sepY);
+            b.applyForce(s.fx * params.separation, s.fy * params.separation);
+        }
+
+        // Alignment
+        if (aliCount > 0) {
+            aliX /= aliCount;
+            aliY /= aliCount;
+            const mag = Math.sqrt(aliX * aliX + aliY * aliY);
+            if (mag > 0) {
+                aliX = (aliX / mag) * params.maxSpeed;
+                aliY = (aliY / mag) * params.maxSpeed;
+            }
+            const s = steer(b, aliX, aliY);
+            b.applyForce(s.fx * params.alignment, s.fy * params.alignment);
+        }
+
+        // Cohesion
+        if (cohCount > 0) {
+            cohX /= cohCount;
+            cohY /= cohCount;
+            let cx = cohX - b.x;
+            let cy = cohY - b.y;
+            const mag = Math.sqrt(cx * cx + cy * cy);
+            if (mag > 0) {
+                cx = (cx / mag) * params.maxSpeed;
+                cy = (cy / mag) * params.maxSpeed;
+            }
+            const s = steer(b, cx, cy);
+            b.applyForce(s.fx * params.cohesion, s.fy * params.cohesion);
+        }
+
+        // Obstacle avoidance
+        for (const obs of obstacles) {
+            const { dx, dy, dist } = distWrapped(b.x, b.y, obs.x, obs.y);
+            if (dist < obs.r && dist > 0) {
+                const strength = params.obstacleStrength * (1 - dist / obs.r);
+                const invDist = 1 / dist;
+                b.applyForce(-dx * invDist * strength * 0.3, -dy * invDist * strength * 0.3);
+            }
+        }
+    }
+}
+
+/* ============================
+   MOUSE INTERACTION
+   ============================ */
+let mouse = { x: 0, y: 0, onCanvas: false, down: false };
+
+canvas.addEventListener('mousemove', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    mouse.x = e.clientX - rect.left;
+    mouse.y = e.clientY - rect.top;
+    mouse.onCanvas = true;
+});
+
+canvas.addEventListener('mouseleave', () => { mouse.onCanvas = false; });
+
+canvas.addEventListener('mousedown', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    mouse.down = true;
+
+    if (params.mouseMode === 'spawn') {
+        // Spawn a burst of 5 boids at click location
+        for (let i = 0; i < 5; i++) {
+            const species = params.speciesEnabled
+                ? Math.floor(Math.random() * params.speciesCount)
+                : 0;
+            flock.push(new Boid(
+                mx + (Math.random() - 0.5) * 20,
+                my + (Math.random() - 0.5) * 20,
+                species
+            ));
+        }
+    } else if (params.mouseMode === 'obstacle') {
+        obstacles.push({ x: mx, y: my, r: params.obstacleRadius });
+    }
+});
+
+canvas.addEventListener('mouseup', () => { mouse.down = false; });
+
+function applyMouseForce() {
+    if (!mouse.onCanvas) return;
+    if (params.mouseMode !== 'attract' && params.mouseMode !== 'repel') return;
+
+    const isAttract = params.mouseMode === 'attract';
+    const mouseRadius = 150;
+
+    for (const b of flock) {
+        const { dx, dy, dist } = distWrapped(b.x, b.y, mouse.x, mouse.y);
+        if (dist < mouseRadius && dist > 0) {
+            const strength = params.mouseForce * 0.02 * (1 - dist / mouseRadius);
+            const invDist = 1 / dist;
+            if (isAttract) {
+                b.applyForce(dx * invDist * strength, dy * invDist * strength);
+            } else {
+                b.applyForce(-dx * invDist * strength, -dy * invDist * strength);
+            }
+        }
+    }
+}
+
+function drawMouseIndicator() {
+    if (!mouse.onCanvas) return;
+    if (params.mouseMode === 'attract') {
+        ctx.beginPath();
+        ctx.arc(mouse.x, mouse.y, 12, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(100, 200, 255, 0.5)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        // Inward arrows
+        for (let a = 0; a < Math.PI * 2; a += Math.PI / 2) {
+            const ox = Math.cos(a) * 20;
+            const oy = Math.sin(a) * 20;
+            ctx.beginPath();
+            ctx.moveTo(mouse.x + ox, mouse.y + oy);
+            ctx.lineTo(mouse.x + ox * 0.5, mouse.y + oy * 0.5);
+            ctx.strokeStyle = 'rgba(100, 200, 255, 0.3)';
+            ctx.stroke();
+        }
+    } else if (params.mouseMode === 'repel') {
+        ctx.beginPath();
+        ctx.arc(mouse.x, mouse.y, 12, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(255, 100, 100, 0.5)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        // Outward arrows
+        for (let a = 0; a < Math.PI * 2; a += Math.PI / 2) {
+            const ix = Math.cos(a) * 8;
+            const iy = Math.sin(a) * 8;
+            const ox = Math.cos(a) * 20;
+            const oy = Math.sin(a) * 20;
+            ctx.beginPath();
+            ctx.moveTo(mouse.x + ix, mouse.y + iy);
+            ctx.lineTo(mouse.x + ox, mouse.y + oy);
+            ctx.strokeStyle = 'rgba(255, 100, 100, 0.3)';
+            ctx.stroke();
+        }
+    } else if (params.mouseMode === 'spawn') {
+        ctx.beginPath();
+        ctx.arc(mouse.x, mouse.y, 6, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(150, 255, 150, 0.4)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        // Plus sign
+        ctx.beginPath();
+        ctx.moveTo(mouse.x - 4, mouse.y);
+        ctx.lineTo(mouse.x + 4, mouse.y);
+        ctx.moveTo(mouse.x, mouse.y - 4);
+        ctx.lineTo(mouse.x, mouse.y + 4);
+        ctx.strokeStyle = 'rgba(150, 255, 150, 0.5)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+    } else if (params.mouseMode === 'obstacle') {
+        ctx.beginPath();
+        ctx.arc(mouse.x, mouse.y, params.obstacleRadius, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(255, 80, 80, 0.25)';
+        ctx.setLineDash([4, 4]);
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
+}
+
+/* ============================
+   BOUNDARY VISUALIZATION
+   ============================ */
+function drawBoundary() {
+    if (params.boundaryMode === 'bounce') {
+        ctx.strokeStyle = 'rgba(100, 100, 180, 0.4)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([8, 6]);
+        ctx.strokeRect(4, 4, canvas.width - 8, canvas.height - 8);
+        ctx.setLineDash([]);
+    } else {
+        ctx.strokeStyle = 'rgba(80, 80, 150, 0.15)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 8]);
+        ctx.strokeRect(1, 1, canvas.width - 2, canvas.height - 2);
+        ctx.setLineDash([]);
+    }
+}
+
+/* ============================
+   STATS
+   ============================ */
+let lastTime = performance.now();
+let frameCount = 0;
+let fps = 0;
+
+function updateStats() {
+    frameCount++;
+    const now = performance.now();
+    if (now - lastTime >= 500) {
+        fps = Math.round((frameCount / (now - lastTime)) * 1000);
+        lastTime = now;
+        frameCount = 0;
+    }
+
+    let totalSpeed = 0;
+    let totalNeighbors = 0;
+    for (const b of flock) {
+        totalSpeed += Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+        totalNeighbors += b.neighborCount;
+    }
+
+    const n = flock.length || 1;
+    document.getElementById('st-fps').textContent = fps;
+    document.getElementById('st-count').textContent = flock.length;
+    document.getElementById('st-speed').textContent = (totalSpeed / n).toFixed(1);
+    document.getElementById('st-neigh').textContent = (totalNeighbors / n).toFixed(1);
+}
+
+/* ============================
+   MAIN LOOP
+   ============================ */
+function loop() {
+    requestAnimationFrame(loop);
+
+    if (!paused) {
+        applyFlockingRules();
+        applyMouseForce();
+        for (const b of flock) b.update();
+    }
+
+    ctx.fillStyle = '#06060c';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    drawBoundary();
+    drawObstacles();
+    for (const b of flock) b.draw();
+    drawMouseIndicator();
+
+    updateStats();
+}
+loop();
+
+/* ============================
+   UI BINDINGS
+   ============================ */
+
+// --- Sliders ---
+function bindSlider(id, valId, param, parser) {
+    const sl = document.getElementById(id);
+    const vl = document.getElementById(valId);
+    sl.addEventListener('input', () => {
+        params[param] = parser(sl.value);
+        vl.textContent = sl.value;
+    });
+}
+
+bindSlider('sl-sep', 'val-sep', 'separation', parseFloat);
+bindSlider('sl-ali', 'val-ali', 'alignment', parseFloat);
+bindSlider('sl-coh', 'val-coh', 'cohesion', parseFloat);
+bindSlider('sl-rad', 'val-rad', 'neighborRadius', parseInt);
+bindSlider('sl-spd', 'val-spd', 'maxSpeed', parseFloat);
+bindSlider('sl-mforce', 'val-mforce', 'mouseForce', parseFloat);
+bindSlider('sl-orad', 'val-orad', 'obstacleRadius', parseInt);
+bindSlider('sl-ostr', 'val-ostr', 'obstacleStrength', parseFloat);
+
+function syncSliders() {
+    const map = [
+        ['sl-sep', 'val-sep', 'separation'],
+        ['sl-ali', 'val-ali', 'alignment'],
+        ['sl-coh', 'val-coh', 'cohesion'],
+        ['sl-rad', 'val-rad', 'neighborRadius'],
+        ['sl-spd', 'val-spd', 'maxSpeed']
+    ];
+    for (const [slId, vlId, key] of map) {
+        document.getElementById(slId).value = params[key];
+        document.getElementById(vlId).textContent = params[key];
+    }
+}
+
+// --- Mouse mode buttons ---
+const modeHints = {
+    spawn: 'Click canvas to spawn boids',
+    attract: 'Hover to pull boids toward cursor',
+    repel: 'Hover to push boids away from cursor',
+    obstacle: 'Click canvas to drop an obstacle'
+};
+
+document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        params.mouseMode = btn.dataset.mode;
+        document.getElementById('mode-hint').textContent = modeHints[params.mouseMode];
+    });
+});
+
+// --- Presets ---
+document.getElementById('pre-school').addEventListener('click', () => {
+    params.separation = 0.5;
+    params.alignment = 4.0;
+    params.cohesion = 2.0;
+    params.neighborRadius = 100;
+    params.maxSpeed = 4.0;
+    syncSliders();
+});
+
+document.getElementById('pre-chaos').addEventListener('click', () => {
+    params.separation = 1.0;
+    params.alignment = 0.3;
+    params.cohesion = 0.3;
+    params.neighborRadius = 30;
+    params.maxSpeed = 6.0;
+    syncSliders();
+});
+
+document.getElementById('pre-factions').addEventListener('click', () => {
+    params.separation = 2.0;
+    params.alignment = 1.5;
+    params.cohesion = 4.5;
+    params.neighborRadius = 60;
+    params.maxSpeed = 3.5;
+    syncSliders();
+});
+
+// --- Pause / Resume ---
+const btnPause = document.getElementById('btn-pause');
+btnPause.addEventListener('click', () => {
+    paused = !paused;
+    btnPause.textContent = paused ? 'Resume' : 'Pause';
+    btnPause.classList.toggle('active', paused);
+});
+
+// --- Reset ---
+document.getElementById('btn-reset').addEventListener('click', () => {
+    params.separation = 1.5;
+    params.alignment = 1.0;
+    params.cohesion = 1.0;
+    params.neighborRadius = 80;
+    params.maxSpeed = 4.0;
+    syncSliders();
+    obstacles = [];
+    initFlock();
+    paused = false;
+    btnPause.textContent = 'Pause';
+    btnPause.classList.remove('active');
+});
+
+// --- Clear Obstacles ---
+document.getElementById('btn-clear-obs').addEventListener('click', () => {
+    obstacles = [];
+});
+
+// --- Boundary toggle ---
+const tglBoundary = document.getElementById('tgl-boundary');
+const blWrap = document.getElementById('bl-wrap');
+const blBounce = document.getElementById('bl-bounce');
+
+tglBoundary.addEventListener('change', () => {
+    if (tglBoundary.checked) {
+        params.boundaryMode = 'bounce';
+        blBounce.classList.add('active-label');
+        blBounce.classList.remove('inactive-label');
+        blWrap.classList.add('inactive-label');
+        blWrap.classList.remove('active-label');
+    } else {
+        params.boundaryMode = 'wrap';
+        blWrap.classList.add('active-label');
+        blWrap.classList.remove('inactive-label');
+        blBounce.classList.add('inactive-label');
+        blBounce.classList.remove('active-label');
+    }
+});
+
+// --- Species toggle ---
+const tglSpecies = document.getElementById('tgl-species');
+const spOff = document.getElementById('sp-off');
+const spOn = document.getElementById('sp-on');
+const speciesCountRow = document.getElementById('species-count-row');
+const speciesLegend = document.getElementById('species-legend');
+
+function updateSpeciesLegend() {
+    speciesLegend.innerHTML = '';
+    for (let i = 0; i < params.speciesCount; i++) {
+        const pal = SPECIES_PALETTES[i];
+        const el = document.createElement('div');
+        el.className = 'species-dot';
+        el.innerHTML = `<div class="dot" style="background:rgb(${pal.base.join(',')})"></div>${pal.name}`;
+        speciesLegend.appendChild(el);
+    }
+}
+
+tglSpecies.addEventListener('change', () => {
+    params.speciesEnabled = tglSpecies.checked;
+    if (tglSpecies.checked) {
+        spOn.classList.add('active-label');
+        spOn.classList.remove('inactive-label');
+        spOff.classList.add('inactive-label');
+        spOff.classList.remove('active-label');
+        speciesCountRow.style.display = '';
+        speciesLegend.style.display = '';
+        updateSpeciesLegend();
+    } else {
+        spOff.classList.add('active-label');
+        spOff.classList.remove('inactive-label');
+        spOn.classList.add('inactive-label');
+        spOn.classList.remove('active-label');
+        speciesCountRow.style.display = 'none';
+        speciesLegend.style.display = 'none';
+    }
+    // Reassign species to existing boids
+    flock.forEach((b, i) => {
+        b.species = params.speciesEnabled ? (i % params.speciesCount) : 0;
+    });
+});
+
+const slScount = document.getElementById('sl-scount');
+const valScount = document.getElementById('val-scount');
+slScount.addEventListener('input', () => {
+    params.speciesCount = parseInt(slScount.value);
+    valScount.textContent = slScount.value;
+    updateSpeciesLegend();
+    // Reassign species
+    flock.forEach((b, i) => {
+        b.species = i % params.speciesCount;
+    });
+});
+</script>
+</body>
+</html>
