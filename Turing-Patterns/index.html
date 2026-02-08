@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Turing Patterns Explorer</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Courier New', 'Consolas', monospace;
+            background: #000;
+            color: #5ce0d2;
+            min-height: 100vh;
+        }
+        header {
+            background: #000;
+            padding: 12px 24px;
+            text-align: center;
+            border-bottom: 1px solid #0ff3;
+        }
+        header h1 {
+            font-size: 1.4rem;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            color: #0ef;
+            text-shadow: 0 0 10px #0ef6, 0 0 20px #0ef3;
+        }
+        header p { font-size: 0.8rem; color: #5ce0d288; margin-top: 2px; letter-spacing: 2px; }
+        .app {
+            display: flex;
+            flex-direction: row;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 16px;
+            gap: 16px;
+        }
+        .canvas-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+        #simCanvas {
+            border: 1px solid #0ef3;
+            border-radius: 4px;
+            cursor: crosshair;
+            max-width: 100%;
+            image-rendering: pixelated;
+            box-shadow: 0 0 20px #0ef2, 0 0 40px #0ef1;
+        }
+        .controls {
+            width: 320px;
+            min-width: 300px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: calc(100vh - 100px);
+            overflow-y: auto;
+        }
+        .controls::-webkit-scrollbar { width: 6px; }
+        .controls::-webkit-scrollbar-track { background: #0a0a0a; }
+        .controls::-webkit-scrollbar-thumb { background: #0ef4; border-radius: 3px; }
+        .permanent-controls {
+            display: flex;
+            gap: 8px;
+            padding: 12px;
+            background: #0a0a0a;
+            border-radius: 8px;
+            border: 1px solid #0ef2;
+        }
+        .permanent-controls button {
+            flex: 1;
+            padding: 10px 8px;
+            border: 1px solid #0ef4;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            background: #0a0a0a;
+            color: #0ef;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .permanent-controls button:hover { background: #0ef1; border-color: #0ef; box-shadow: 0 0 10px #0ef3; }
+        .section {
+            background: #0a0a0a;
+            border-radius: 8px;
+            border: 1px solid #0ef2;
+        }
+        .section-header {
+            padding: 10px 14px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            font-size: 0.9rem;
+            user-select: none;
+            transition: background 0.2s;
+            color: #0ef;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .section-header:hover { background: #0ef1; }
+        .section-header .arrow { transition: transform 0.3s; font-size: 0.7rem; }
+        .section-header .arrow.collapsed { transform: rotate(-90deg); }
+        .section-body {
+            padding: 0 14px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .section-body.hidden { display: none; }
+        .btn-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+        }
+        .btn-grid button {
+            padding: 8px 6px;
+            border: 1px solid #0ef3;
+            border-radius: 6px;
+            background: #050505;
+            color: #5ce0d2;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.8rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .btn-grid button:hover { background: #0ef1; border-color: #0ef6; }
+        .btn-grid button.active {
+            border-color: #0ef;
+            background: #0ef1;
+            color: #fff;
+            box-shadow: 0 0 8px #0ef3;
+        }
+        .slider-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .slider-row label { font-size: 0.8rem; min-width: 50px; }
+        .slider-row input[type="range"] { flex: 1; accent-color: #0ef; }
+        .slider-row .val { font-size: 0.8rem; min-width: 35px; text-align: right; color: #0ef; }
+        .color-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 6px;
+        }
+        .color-grid button {
+            padding: 8px 4px;
+            border: 1px solid #0ef3;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: #fff;
+            transition: all 0.2s;
+        }
+        .color-grid button.active { border-color: #0ef; box-shadow: 0 0 8px #0ef3; }
+        .custom-colors {
+            display: none;
+            gap: 8px;
+            align-items: center;
+            padding-top: 6px;
+        }
+        .custom-colors.visible { display: flex; }
+        .custom-colors label { font-size: 0.8rem; }
+        .custom-colors input[type="color"] {
+            width: 40px; height: 30px;
+            border: none; border-radius: 4px;
+            cursor: pointer; background: none;
+        }
+        .info-panel {
+            background: #0a0a0a;
+            border-radius: 8px;
+            padding: 14px;
+            border: 1px solid #0ef2;
+        }
+        .info-panel h3 { font-size: 0.9rem; margin-bottom: 8px; color: #0ef; text-transform: uppercase; letter-spacing: 1px; }
+        .info-panel p { font-size: 0.78rem; line-height: 1.5; color: #5ce0d2aa; }
+
+        @media (max-width: 768px) {
+            .app { flex-direction: column; align-items: center; }
+            .controls { width: 100%; min-width: unset; max-height: unset; }
+            #simCanvas { max-width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Turing Patterns Explorer</h1>
+        <p>Reaction-Diffusion Simulation</p>
+    </header>
+    <div class="app">
+        <div class="canvas-container">
+            <canvas id="simCanvas" width="512" height="512" aria-label="Turing pattern simulation canvas"></canvas>
+        </div>
+        <div class="controls">
+            <div class="permanent-controls">
+                <button id="playBtn" aria-label="Pause simulation">Pause</button>
+                <button id="clearBtn" aria-label="Clear simulation">Clear</button>
+                <button id="saveBtn" aria-label="Save image">Save PNG</button>
+            </div>
+
+            <div class="section">
+                <div class="section-header" data-section="patterns">
+                    Pattern Types <span class="arrow">&#9660;</span>
+                </div>
+                <div class="section-body" id="patternsBody">
+                    <div class="btn-grid" id="patternBtns">
+                        <button data-pattern="maze">Maze</button>
+                        <button data-pattern="spots" class="active">Spots</button>
+                        <button data-pattern="stripes">Stripes</button>
+                        <button data-pattern="spirals">Spirals</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-header" data-section="tools">
+                    Drawing Tools <span class="arrow">&#9660;</span>
+                </div>
+                <div class="section-body" id="toolsBody">
+                    <div class="btn-grid" id="toolBtns">
+                        <button data-tool="brush" class="active">Brush</button>
+                        <button data-tool="eraser">Eraser</button>
+                        <button data-tool="spray">Spray</button>
+                        <button data-tool="line">Line</button>
+                    </div>
+                    <div class="slider-row">
+                        <label>Size</label>
+                        <input type="range" id="brushSize" min="5" max="50" value="15" step="1" aria-label="Brush size">
+                        <span class="val" id="brushSizeVal">15</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-header" data-section="speed">
+                    Speed Control <span class="arrow">&#9660;</span>
+                </div>
+                <div class="section-body" id="speedBody">
+                    <div class="slider-row">
+                        <label>Speed</label>
+                        <input type="range" id="speedSlider" min="0.5" max="4" value="1" step="0.1" aria-label="Simulation speed">
+                        <span class="val" id="speedVal">1.0x</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-header" data-section="colors">
+                    Color Schemes <span class="arrow">&#9660;</span>
+                </div>
+                <div class="section-body" id="colorsBody">
+                    <div class="color-grid" id="colorBtns">
+                        <button data-color="classic" class="active" style="background:linear-gradient(135deg,#0066cc,#fff)">Classic</button>
+                        <button data-color="fire" style="background:linear-gradient(135deg,#000,#cc0000,#ffff00,#fff)">Fire</button>
+                        <button data-color="ocean" style="background:linear-gradient(135deg,#001f3f,#7fdbff)">Ocean</button>
+                        <button data-color="grayscale" style="background:linear-gradient(135deg,#000,#fff)">Grayscale</button>
+                        <button data-color="neon" style="background:linear-gradient(135deg,#9b59b6,#e91e63,#00bcd4)">Neon</button>
+                        <button data-color="custom" style="background:linear-gradient(135deg,#000,#fff)">Custom</button>
+                    </div>
+                    <div class="custom-colors" id="customColors">
+                        <label>Low</label>
+                        <input type="color" id="colorLow" value="#000000" aria-label="Low concentration color">
+                        <label>High</label>
+                        <input type="color" id="colorHigh" value="#ffffff" aria-label="High concentration color">
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-panel">
+                <h3>About Turing Patterns</h3>
+                <p>
+                    Turing patterns arise from reaction-diffusion systems, where two chemicals
+                    interact and diffuse at different rates. In 1952, Alan Turing proposed this
+                    mechanism to explain how complex patterns emerge from simple chemical
+                    interactions during biological development.
+                </p>
+                <p style="margin-top:6px">
+                    These same mathematical principles explain patterns found throughout nature:
+                    the spots on a leopard, stripes on a zebrafish, the branching of coral,
+                    and ripples in sand dunes. This simulator uses the Gray-Scott model, one
+                    of the most widely studied reaction-diffusion systems.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    (() => {
+        // --- Configuration ---
+        const N = 256;
+        const Du = 0.16, Dv = 0.08, dt = 1.0;
+        const PRESETS = {
+            maze:    { F: 0.029, K: 0.057 },
+            spots:   { F: 0.030, K: 0.062 },
+            stripes: { F: 0.042, K: 0.059 },
+            spirals: { F: 0.014, K: 0.054 }
+        };
+        const COLOR_SCHEMES = {
+            classic:   { stops: [[0,'#0066cc'],[1,'#ffffff']] },
+            fire:      { stops: [[0,'#000000'],[0.33,'#cc0000'],[0.66,'#ffff00'],[1,'#ffffff']] },
+            ocean:     { stops: [[0,'#001f3f'],[1,'#7fdbff']] },
+            grayscale: { stops: [[0,'#000000'],[1,'#ffffff']] },
+            neon:      { stops: [[0,'#9b59b6'],[0.5,'#e91e63'],[1,'#00bcd4']] },
+            custom:    { stops: [[0,'#000000'],[1,'#ffffff']] }
+        };
+
+        // --- State ---
+        let F = PRESETS.spots.F, K = PRESETS.spots.K;
+        let currentPattern = 'spots';
+        let currentTool = 'brush';
+        let brushSize = 15;
+        let speed = 1.0;
+        let playing = true;
+        let colorScheme = 'classic';
+        let colorLUT = null;
+
+        // Simulation grids (double-buffered)
+        let u = new Float32Array(N * N);
+        let v = new Float32Array(N * N);
+        let u2 = new Float32Array(N * N);
+        let v2 = new Float32Array(N * N);
+
+        // Canvas
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+        const imageData = ctx.createImageData(N, N);
+        canvas.style.width = '512px';
+        canvas.style.height = '512px';
+        canvas.width = N;
+        canvas.height = N;
+
+        // --- Color LUT ---
+        function hexToRGB(hex) {
+            const r = parseInt(hex.slice(1,3),16);
+            const g = parseInt(hex.slice(3,5),16);
+            const b = parseInt(hex.slice(5,7),16);
+            return [r, g, b];
+        }
+
+        function buildColorLUT(schemeName) {
+            const scheme = COLOR_SCHEMES[schemeName];
+            const lut = new Uint8Array(256 * 3);
+            const stops = scheme.stops.map(s => ({ t: s[0], rgb: hexToRGB(s[1]) }));
+            for (let i = 0; i < 256; i++) {
+                const t = i / 255;
+                let lo = stops[0], hi = stops[stops.length - 1];
+                for (let s = 0; s < stops.length - 1; s++) {
+                    if (t >= stops[s].t && t <= stops[s+1].t) {
+                        lo = stops[s]; hi = stops[s+1]; break;
+                    }
+                }
+                const range = hi.t - lo.t || 1;
+                const f = (t - lo.t) / range;
+                lut[i*3]   = lo.rgb[0] + (hi.rgb[0] - lo.rgb[0]) * f;
+                lut[i*3+1] = lo.rgb[1] + (hi.rgb[1] - lo.rgb[1]) * f;
+                lut[i*3+2] = lo.rgb[2] + (hi.rgb[2] - lo.rgb[2]) * f;
+            }
+            return lut;
+        }
+
+        function refreshLUT() {
+            colorLUT = buildColorLUT(colorScheme);
+        }
+
+        // --- Simulation ---
+        function seedCircle(cx, cy, r) {
+            for (let dy = -r; dy <= r; dy++) {
+                for (let dx = -r; dx <= r; dx++) {
+                    if (dx*dx+dy*dy < r*r) {
+                        const idx = ((cy+dy+N)%N)*N+((cx+dx+N)%N);
+                        u[idx] = 0.5 + Math.random() * 0.1;
+                        v[idx] = 0.25 + Math.random() * 0.1;
+                    }
+                }
+            }
+        }
+
+        function initGrid() {
+            u.fill(1.0);
+            v.fill(0.0);
+
+            if (currentPattern === 'maze') {
+                // Dense noise across entire grid so maze fills everywhere at once
+                for (let i = 0; i < N * N; i++) {
+                    if (Math.random() < 0.15) {
+                        u[i] = 0.5 + Math.random() * 0.1;
+                        v[i] = 0.25 + Math.random() * 0.1;
+                    }
+                }
+            } else if (currentPattern === 'spots') {
+                // Many small seed clusters scattered around the grid
+                for (let i = 0; i < 30; i++) {
+                    const sx = Math.floor(Math.random() * N);
+                    const sy = Math.floor(Math.random() * N);
+                    seedCircle(sx, sy, 3 + Math.floor(Math.random() * 5));
+                }
+            } else if (currentPattern === 'stripes') {
+                // Dense random seeding for organic zebra stripes
+                for (let i = 0; i < N * N; i++) {
+                    if (Math.random() < 0.12) {
+                        u[i] = 0.5 + Math.random() * 0.1;
+                        v[i] = 0.25 + Math.random() * 0.1;
+                    }
+                }
+            } else if (currentPattern === 'spirals') {
+                // Single center seed for spiral wave growth
+                seedCircle(N/2, N/2, 10);
+            }
+        }
+
+        function simulate(steps) {
+            for (let s = 0; s < steps; s++) {
+                for (let y = 0; y < N; y++) {
+                    const ym = ((y - 1) + N) % N;
+                    const yp = (y + 1) % N;
+                    for (let x = 0; x < N; x++) {
+                        const xm = ((x - 1) + N) % N;
+                        const xp = (x + 1) % N;
+                        const idx = y * N + x;
+                        const uVal = u[idx], vVal = v[idx];
+
+                        // Discrete Laplacian
+                        const lapU = u[ym*N+x] + u[yp*N+x] + u[y*N+xm] + u[y*N+xp] - 4*uVal;
+                        const lapV = v[ym*N+x] + v[yp*N+x] + v[y*N+xm] + v[y*N+xp] - 4*vVal;
+
+                        const uvv = uVal * vVal * vVal;
+                        u2[idx] = uVal + (Du * lapU - uvv + F * (1.0 - uVal)) * dt;
+                        v2[idx] = vVal + (Dv * lapV + uvv - (F + K) * vVal) * dt;
+
+                        // Clamp
+                        if (u2[idx] < 0) u2[idx] = 0;
+                        if (u2[idx] > 1) u2[idx] = 1;
+                        if (v2[idx] < 0) v2[idx] = 0;
+                        if (v2[idx] > 1) v2[idx] = 1;
+                    }
+                }
+                // Swap
+                const tu = u; u = u2; u2 = tu;
+                const tv = v; v = v2; v2 = tv;
+            }
+        }
+
+        function render() {
+            const data = imageData.data;
+            for (let i = 0; i < N * N; i++) {
+                const val = Math.min(255, Math.max(0, Math.floor(v[i] * 255 * 2)));
+                const ci = val * 3;
+                const pi = i * 4;
+                data[pi]   = colorLUT[ci];
+                data[pi+1] = colorLUT[ci+1];
+                data[pi+2] = colorLUT[ci+2];
+                data[pi+3] = 255;
+            }
+            ctx.putImageData(imageData, 0, 0);
+        }
+
+        // --- Drawing Tools ---
+        let isDrawing = false;
+        let lastX = -1, lastY = -1;
+
+        function canvasCoords(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = N / rect.width;
+            const scaleY = N / rect.height;
+            let cx, cy;
+            if (e.touches) {
+                cx = (e.touches[0].clientX - rect.left) * scaleX;
+                cy = (e.touches[0].clientY - rect.top) * scaleY;
+            } else {
+                cx = (e.clientX - rect.left) * scaleX;
+                cy = (e.clientY - rect.top) * scaleY;
+            }
+            return [Math.floor(cx), Math.floor(cy)];
+        }
+
+        function applyTool(x, y) {
+            const r = Math.floor(brushSize * N / 512);
+            if (currentTool === 'brush') {
+                for (let dy = -r; dy <= r; dy++) {
+                    for (let dx = -r; dx <= r; dx++) {
+                        if (dx*dx+dy*dy <= r*r) {
+                            const idx = ((y+dy+N)%N)*N+((x+dx+N)%N);
+                            v[idx] = 1.0;
+                            u[idx] = 0.0;
+                        }
+                    }
+                }
+            } else if (currentTool === 'eraser') {
+                for (let dy = -r; dy <= r; dy++) {
+                    for (let dx = -r; dx <= r; dx++) {
+                        if (dx*dx+dy*dy <= r*r) {
+                            const idx = ((y+dy+N)%N)*N+((x+dx+N)%N);
+                            u[idx] = 1.0;
+                            v[idx] = 0.0;
+                            u2[idx] = 1.0;
+                            v2[idx] = 0.0;
+                        }
+                    }
+                }
+            } else if (currentTool === 'spray') {
+                const dots = Math.floor(r * r * 0.15);
+                for (let i = 0; i < dots; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const dist = Math.random() * r;
+                    const dx = Math.round(Math.cos(angle) * dist);
+                    const dy = Math.round(Math.sin(angle) * dist);
+                    const sr = 2;
+                    for (let sy = -sr; sy <= sr; sy++) {
+                        for (let sx = -sr; sx <= sr; sx++) {
+                            if (sx*sx+sy*sy<=sr*sr) {
+                                const idx = ((y+dy+sy+N)%N)*N+((x+dx+sx+N)%N);
+                                v[idx] = 1.0;
+                                u[idx] = 0.0;
+                            }
+                        }
+                    }
+                }
+            } else if (currentTool === 'line') {
+                const lr = Math.max(2, Math.floor(r / 3));
+                for (let dy = -lr; dy <= lr; dy++) {
+                    for (let dx = -lr; dx <= lr; dx++) {
+                        if (dx*dx+dy*dy <= lr*lr) {
+                            const idx = ((y+dy+N)%N)*N+((x+dx+N)%N);
+                            v[idx] = 1.0;
+                            u[idx] = 0.0;
+                        }
+                    }
+                }
+            }
+        }
+
+        function drawLine(x0, y0, x1, y1) {
+            const dx = Math.abs(x1-x0), dy = Math.abs(y1-y0);
+            const sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+            let err = dx - dy;
+            while (true) {
+                applyTool(x0, y0);
+                if (x0 === x1 && y0 === y1) break;
+                const e2 = 2 * err;
+                if (e2 > -dy) { err -= dy; x0 += sx; }
+                if (e2 < dx) { err += dx; y0 += sy; }
+            }
+        }
+
+        function handleStart(e) {
+            e.preventDefault();
+            isDrawing = true;
+            const [x, y] = canvasCoords(e);
+            lastX = x; lastY = y;
+            applyTool(x, y);
+        }
+
+        function handleMove(e) {
+            e.preventDefault();
+            if (!isDrawing) return;
+            const [x, y] = canvasCoords(e);
+            if (currentTool === 'line' || currentTool === 'brush') {
+                drawLine(lastX, lastY, x, y);
+            } else {
+                applyTool(x, y);
+            }
+            lastX = x; lastY = y;
+        }
+
+        function handleEnd(e) {
+            e.preventDefault();
+            isDrawing = false;
+            lastX = -1; lastY = -1;
+        }
+
+        canvas.addEventListener('mousedown', handleStart);
+        canvas.addEventListener('mousemove', handleMove);
+        canvas.addEventListener('mouseup', handleEnd);
+        canvas.addEventListener('mouseleave', handleEnd);
+        canvas.addEventListener('touchstart', handleStart, { passive: false });
+        canvas.addEventListener('touchmove', handleMove, { passive: false });
+        canvas.addEventListener('touchend', handleEnd);
+
+        // --- UI Wiring ---
+
+        // Collapsible sections
+        document.querySelectorAll('.section-header').forEach(h => {
+            h.addEventListener('click', () => {
+                const arrow = h.querySelector('.arrow');
+                const body = h.nextElementSibling;
+                body.classList.toggle('hidden');
+                arrow.classList.toggle('collapsed');
+            });
+        });
+
+        // Play/Pause
+        const playBtn = document.getElementById('playBtn');
+        playBtn.addEventListener('click', () => {
+            playing = !playing;
+            playBtn.textContent = playing ? 'Pause' : 'Play';
+            playBtn.setAttribute('aria-label', playing ? 'Pause simulation' : 'Play simulation');
+        });
+
+        // Clear
+        document.getElementById('clearBtn').addEventListener('click', () => {
+            if (confirm('Clear current pattern?')) {
+                initGrid();
+            }
+        });
+
+        // Save
+        document.getElementById('saveBtn').addEventListener('click', () => {
+            // Render at full res to a temp canvas for clean export
+            const tmpCanvas = document.createElement('canvas');
+            tmpCanvas.width = N; tmpCanvas.height = N;
+            const tmpCtx = tmpCanvas.getContext('2d');
+            tmpCtx.putImageData(imageData, 0, 0);
+            const link = document.createElement('a');
+            const now = new Date();
+            const ts = now.getFullYear().toString() +
+                       String(now.getMonth()+1).padStart(2,'0') +
+                       String(now.getDate()).padStart(2,'0') + '-' +
+                       String(now.getHours()).padStart(2,'0') +
+                       String(now.getMinutes()).padStart(2,'0') +
+                       String(now.getSeconds()).padStart(2,'0');
+            link.download = `turing-pattern-${ts}.png`;
+            link.href = tmpCanvas.toDataURL('image/png');
+            link.click();
+        });
+
+        // Pattern presets
+        document.querySelectorAll('#patternBtns button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('#patternBtns button').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                const p = btn.dataset.pattern;
+                currentPattern = p;
+                F = PRESETS[p].F;
+                K = PRESETS[p].K;
+                initGrid();
+            });
+        });
+
+        // Drawing tools
+        document.querySelectorAll('#toolBtns button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('#toolBtns button').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentTool = btn.dataset.tool;
+                canvas.style.cursor = currentTool === 'eraser' ? 'cell' : 'crosshair';
+            });
+        });
+
+        // Brush size
+        const brushSizeSlider = document.getElementById('brushSize');
+        const brushSizeVal = document.getElementById('brushSizeVal');
+        brushSizeSlider.addEventListener('input', () => {
+            brushSize = parseInt(brushSizeSlider.value);
+            brushSizeVal.textContent = brushSize;
+        });
+
+        // Speed
+        const speedSlider = document.getElementById('speedSlider');
+        const speedVal = document.getElementById('speedVal');
+        speedSlider.addEventListener('input', () => {
+            speed = parseFloat(speedSlider.value);
+            speedVal.textContent = speed.toFixed(1) + 'x';
+        });
+
+        // Color schemes
+        document.querySelectorAll('#colorBtns button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('#colorBtns button').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                colorScheme = btn.dataset.color;
+                if (colorScheme === 'custom') {
+                    document.getElementById('customColors').classList.add('visible');
+                } else {
+                    document.getElementById('customColors').classList.remove('visible');
+                }
+                refreshLUT();
+            });
+        });
+
+        // Custom colors
+        document.getElementById('colorLow').addEventListener('input', (e) => {
+            COLOR_SCHEMES.custom.stops[0][1] = e.target.value;
+            if (colorScheme === 'custom') refreshLUT();
+        });
+        document.getElementById('colorHigh').addEventListener('input', (e) => {
+            COLOR_SCHEMES.custom.stops[1][1] = e.target.value;
+            if (colorScheme === 'custom') refreshLUT();
+        });
+
+        // --- Main Loop ---
+        function loop() {
+            if (playing) {
+                const steps = Math.max(1, Math.round(10 * speed));
+                simulate(steps);
+            }
+            render();
+            requestAnimationFrame(loop);
+        }
+
+        // --- Init ---
+        refreshLUT();
+        initGrid();
+        loop();
+    })();
+    </script>
+</body>
+</html>
