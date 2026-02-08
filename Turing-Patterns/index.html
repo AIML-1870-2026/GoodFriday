@@ -208,6 +208,19 @@
             </div>
 
             <div class="section">
+                <div class="section-header" data-section="model">
+                    Chemical System <span class="arrow">&#9660;</span>
+                </div>
+                <div class="section-body" id="modelBody">
+                    <div class="btn-grid" id="modelBtns" style="grid-template-columns:1fr 1fr 1fr">
+                        <button data-model="grayscott" class="active">Gray-Scott</button>
+                        <button data-model="brusselator">Brusselator</button>
+                        <button data-model="schnakenberg">Schnakenberg</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
                 <div class="section-header" data-section="patterns">
                     Pattern Types <span class="arrow">&#9660;</span>
                 </div>
@@ -297,12 +310,38 @@
     (() => {
         // --- Configuration ---
         const N = 256;
-        const Du = 0.16, Dv = 0.08, dt = 1.0;
-        const PRESETS = {
-            maze:    { F: 0.029, K: 0.057 },
-            spots:   { F: 0.030, K: 0.062 },
-            stripes: { F: 0.042, K: 0.059 },
-            spirals: { F: 0.014, K: 0.054 }
+
+        const MODELS = {
+            grayscott: {
+                Du: 0.16, Dv: 0.08, dt: 1.0,
+                presets: {
+                    maze:    { label: 'Maze',    F: 0.029, K: 0.057 },
+                    spots:   { label: 'Spots',   F: 0.030, K: 0.062 },
+                    stripes: { label: 'Stripes', F: 0.042, K: 0.059 },
+                    spirals: { label: 'Spirals', F: 0.014, K: 0.054 }
+                },
+                defaultPreset: 'spots'
+            },
+            brusselator: {
+                Du: 1.0, Dv: 8.0, dt: 0.005,
+                presets: {
+                    spots:    { label: 'Spots',    A: 4.5, B: 7.5 },
+                    stripes:  { label: 'Stripes',  A: 4.5, B: 8.5 },
+                    hexagons: { label: 'Hexagons', A: 2.0, B: 5.2 },
+                    waves:    { label: 'Waves',    A: 3.0, B: 9.0 }
+                },
+                defaultPreset: 'spots'
+            },
+            schnakenberg: {
+                Du: 1.0, Dv: 40.0, dt: 0.005,
+                presets: {
+                    spots:     { label: 'Spots',     a: 0.1,  b: 0.9 },
+                    stripes:   { label: 'Stripes',   a: 0.05, b: 1.5 },
+                    mixed:     { label: 'Mixed',     a: 0.08, b: 1.1 },
+                    labyrinth: { label: 'Labyrinth', a: 0.05, b: 1.65 }
+                },
+                defaultPreset: 'spots'
+            }
         };
         const COLOR_SCHEMES = {
             classic:   { stops: [[0,'#0066cc'],[1,'#ffffff']] },
@@ -314,7 +353,9 @@
         };
 
         // --- State ---
-        let F = PRESETS.spots.F, K = PRESETS.spots.K;
+        let currentModel = 'grayscott';
+        let Du = MODELS.grayscott.Du, Dv = MODELS.grayscott.Dv, dt = MODELS.grayscott.dt;
+        let params = { ...MODELS.grayscott.presets.spots };
         let currentPattern = 'spots';
         let currentTool = 'brush';
         let brushSize = 15;
@@ -385,35 +426,44 @@
         }
 
         function initGrid() {
-            u.fill(1.0);
-            v.fill(0.0);
-
-            if (currentPattern === 'maze') {
-                // Dense noise across entire grid so maze fills everywhere at once
-                for (let i = 0; i < N * N; i++) {
-                    if (Math.random() < 0.15) {
-                        u[i] = 0.5 + Math.random() * 0.1;
-                        v[i] = 0.25 + Math.random() * 0.1;
+            if (currentModel === 'grayscott') {
+                u.fill(1.0);
+                v.fill(0.0);
+                if (currentPattern === 'maze') {
+                    for (let i = 0; i < N * N; i++) {
+                        if (Math.random() < 0.15) {
+                            u[i] = 0.5 + Math.random() * 0.1;
+                            v[i] = 0.25 + Math.random() * 0.1;
+                        }
                     }
-                }
-            } else if (currentPattern === 'spots') {
-                // Many small seed clusters scattered around the grid
-                for (let i = 0; i < 30; i++) {
-                    const sx = Math.floor(Math.random() * N);
-                    const sy = Math.floor(Math.random() * N);
-                    seedCircle(sx, sy, 3 + Math.floor(Math.random() * 5));
-                }
-            } else if (currentPattern === 'stripes') {
-                // Dense random seeding for organic zebra stripes
-                for (let i = 0; i < N * N; i++) {
-                    if (Math.random() < 0.12) {
-                        u[i] = 0.5 + Math.random() * 0.1;
-                        v[i] = 0.25 + Math.random() * 0.1;
+                } else if (currentPattern === 'spots') {
+                    for (let i = 0; i < 30; i++) {
+                        seedCircle(Math.floor(Math.random()*N), Math.floor(Math.random()*N), 3+Math.floor(Math.random()*5));
                     }
+                } else if (currentPattern === 'stripes') {
+                    for (let i = 0; i < N * N; i++) {
+                        if (Math.random() < 0.12) {
+                            u[i] = 0.5 + Math.random() * 0.1;
+                            v[i] = 0.25 + Math.random() * 0.1;
+                        }
+                    }
+                } else {
+                    seedCircle(N/2, N/2, 10);
                 }
-            } else if (currentPattern === 'spirals') {
-                // Single center seed for spiral wave growth
-                seedCircle(N/2, N/2, 10);
+            } else if (currentModel === 'brusselator') {
+                const A = params.A, B = params.B;
+                const uSS = A, vSS = B / A;
+                for (let i = 0; i < N * N; i++) {
+                    u[i] = uSS + (Math.random() - 0.5) * 0.1;
+                    v[i] = vSS + (Math.random() - 0.5) * 0.1;
+                }
+            } else { // schnakenberg
+                const a = params.a, b = params.b;
+                const uSS = a + b, vSS = b / ((a + b) * (a + b));
+                for (let i = 0; i < N * N; i++) {
+                    u[i] = uSS + (Math.random() - 0.5) * 0.01;
+                    v[i] = vSS + (Math.random() - 0.5) * 0.01;
+                }
             }
         }
 
@@ -428,22 +478,35 @@
                         const idx = y * N + x;
                         const uVal = u[idx], vVal = v[idx];
 
-                        // Discrete Laplacian
                         const lapU = u[ym*N+x] + u[yp*N+x] + u[y*N+xm] + u[y*N+xp] - 4*uVal;
                         const lapV = v[ym*N+x] + v[yp*N+x] + v[y*N+xm] + v[y*N+xp] - 4*vVal;
 
-                        const uvv = uVal * vVal * vVal;
-                        u2[idx] = uVal + (Du * lapU - uvv + F * (1.0 - uVal)) * dt;
-                        v2[idx] = vVal + (Dv * lapV + uvv - (F + K) * vVal) * dt;
+                        let du, dv;
+                        if (currentModel === 'grayscott') {
+                            const uvv = uVal * vVal * vVal;
+                            du = Du * lapU - uvv + params.F * (1.0 - uVal);
+                            dv = Dv * lapV + uvv - (params.F + params.K) * vVal;
+                        } else if (currentModel === 'brusselator') {
+                            const uuv = uVal * uVal * vVal;
+                            du = Du * lapU + params.A - (params.B + 1) * uVal + uuv;
+                            dv = Dv * lapV + params.B * uVal - uuv;
+                        } else { // schnakenberg
+                            const uuv = uVal * uVal * vVal;
+                            du = Du * lapU + params.a - uVal + uuv;
+                            dv = Dv * lapV + params.b - uuv;
+                        }
 
-                        // Clamp
+                        u2[idx] = uVal + du * dt;
+                        v2[idx] = vVal + dv * dt;
+
                         if (u2[idx] < 0) u2[idx] = 0;
-                        if (u2[idx] > 1) u2[idx] = 1;
                         if (v2[idx] < 0) v2[idx] = 0;
-                        if (v2[idx] > 1) v2[idx] = 1;
+                        if (currentModel === 'grayscott') {
+                            if (u2[idx] > 1) u2[idx] = 1;
+                            if (v2[idx] > 1) v2[idx] = 1;
+                        }
                     }
                 }
-                // Swap
                 const tu = u; u = u2; u2 = tu;
                 const tv = v; v = v2; v2 = tv;
             }
@@ -451,8 +514,23 @@
 
         function render() {
             const data = imageData.data;
+            // Auto-normalize for non-Gray-Scott models
+            let vMin = 0, vMax = 0.5;
+            if (currentModel !== 'grayscott') {
+                vMin = Infinity; vMax = -Infinity;
+                for (let i = 0; i < N * N; i++) {
+                    if (v[i] < vMin) vMin = v[i];
+                    if (v[i] > vMax) vMax = v[i];
+                }
+                if (vMax - vMin < 0.001) { vMin = 0; vMax = 1; }
+            }
             for (let i = 0; i < N * N; i++) {
-                const val = Math.min(255, Math.max(0, Math.floor(v[i] * 255 * 2)));
+                let val;
+                if (currentModel === 'grayscott') {
+                    val = Math.min(255, Math.max(0, Math.floor(v[i] * 255 * 2)));
+                } else {
+                    val = Math.min(255, Math.max(0, Math.floor(((v[i] - vMin) / (vMax - vMin)) * 255)));
+                }
                 const ci = val * 3;
                 const pi = i * 4;
                 data[pi]   = colorLUT[ci];
@@ -632,15 +710,43 @@
             link.click();
         });
 
-        // Pattern presets
-        document.querySelectorAll('#patternBtns button').forEach(btn => {
+        // --- Model selector ---
+        function applyPreset(presetKey) {
+            const model = MODELS[currentModel];
+            currentPattern = presetKey;
+            params = { ...model.presets[presetKey] };
+            initGrid();
+        }
+
+        function buildPatternButtons() {
+            const container = document.getElementById('patternBtns');
+            container.innerHTML = '';
+            const model = MODELS[currentModel];
+            const keys = Object.keys(model.presets);
+            keys.forEach((key, i) => {
+                const btn = document.createElement('button');
+                btn.dataset.pattern = key;
+                btn.textContent = model.presets[key].label;
+                if (key === currentPattern) btn.classList.add('active');
+                btn.addEventListener('click', () => {
+                    container.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    applyPreset(key);
+                });
+                container.appendChild(btn);
+            });
+        }
+
+        document.querySelectorAll('#modelBtns button').forEach(btn => {
             btn.addEventListener('click', () => {
-                document.querySelectorAll('#patternBtns button').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('#modelBtns button').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
-                const p = btn.dataset.pattern;
-                currentPattern = p;
-                F = PRESETS[p].F;
-                K = PRESETS[p].K;
+                currentModel = btn.dataset.model;
+                const model = MODELS[currentModel];
+                Du = model.Du; Dv = model.Dv; dt = model.dt;
+                currentPattern = model.defaultPreset;
+                params = { ...model.presets[model.defaultPreset] };
+                buildPatternButtons();
                 initGrid();
             });
         });
@@ -699,7 +805,8 @@
         // --- Main Loop ---
         function loop() {
             if (playing) {
-                const steps = Math.max(1, Math.round(10 * speed));
+                const baseSteps = currentModel === 'grayscott' ? 10 : 80;
+                const steps = Math.max(1, Math.round(baseSteps * speed));
                 simulate(steps);
             }
             render();
@@ -708,6 +815,7 @@
 
         // --- Init ---
         refreshLUT();
+        buildPatternButtons();
         initGrid();
         loop();
     })();
