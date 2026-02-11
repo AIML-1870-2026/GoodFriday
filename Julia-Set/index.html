@@ -1,0 +1,2245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Julia Set Explorer</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0d1117;
+  --panel-bg: #161b22;
+  --section-bg: #1c2128;
+  --border: #30363d;
+  --text: #e6edf3;
+  --text-dim: #8b949e;
+  --accent: #58a6ff;
+  --accent-hover: #79c0ff;
+  --btn-bg: #21262d;
+  --btn-hover: #30363d;
+  --danger: #f85149;
+  --success: #3fb950;
+  --panel-width: 340px;
+}
+
+html, body {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;
+}
+
+/* Header */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: var(--panel-bg);
+  border-bottom: 1px solid var(--border);
+  height: 48px;
+  flex-shrink: 0;
+}
+.header h1 {
+  font-size: 18px;
+  font-weight: 600;
+  background: linear-gradient(135deg, var(--accent), #bc8cff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.header .mode-badge {
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: var(--accent);
+  color: #000;
+  font-weight: 600;
+}
+
+/* Main layout */
+.app {
+  display: flex;
+  height: calc(100vh - 48px);
+}
+
+/* Canvas area */
+.canvas-area {
+  flex: 1;
+  display: flex;
+  min-width: 0;
+  position: relative;
+}
+.canvas-container {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  overflow: hidden;
+  min-width: 0;
+}
+.canvas-container canvas {
+  cursor: crosshair;
+  image-rendering: pixelated;
+}
+.canvas-overlay {
+  position: absolute;
+  padding: 6px 10px;
+  background: rgba(0,0,0,0.65);
+  color: #fff;
+  font-size: 12px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  border-radius: 4px;
+  pointer-events: none;
+  user-select: none;
+}
+.overlay-coords { top: 10px; left: 10px; }
+.overlay-zoom { top: 10px; right: 10px; }
+.overlay-label {
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 13px;
+  font-weight: 600;
+  background: rgba(88,166,255,0.25);
+  border: 1px solid rgba(88,166,255,0.4);
+}
+
+/* Split view */
+.canvas-container.split-left {
+  border-right: 2px solid var(--accent);
+}
+.split-crosshair {
+  position: absolute;
+  pointer-events: none;
+  z-index: 5;
+}
+.split-crosshair-h, .split-crosshair-v {
+  position: absolute;
+  background: rgba(88,166,255,0.5);
+}
+.split-crosshair-h { height: 1px; width: 20px; }
+.split-crosshair-v { width: 1px; height: 20px; }
+
+/* Second canvas hidden by default */
+#splitContainer { display: none; }
+.app.split-mode #splitContainer { display: flex; }
+
+/* Control Panel */
+.control-panel {
+  width: var(--panel-width);
+  background: var(--panel-bg);
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+  flex-shrink: 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.control-panel::-webkit-scrollbar { width: 6px; }
+.control-panel::-webkit-scrollbar-track { background: transparent; }
+.control-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* Quick actions */
+.quick-actions {
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.mode-toggle {
+  display: flex;
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 3px;
+  margin-bottom: 10px;
+}
+.mode-toggle button {
+  flex: 1;
+  padding: 7px 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.mode-toggle button.active {
+  background: var(--accent);
+  color: #000;
+  font-weight: 600;
+}
+.action-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+.action-btn {
+  flex: 1;
+  padding: 7px 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--btn-bg);
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+.action-btn:hover { background: var(--btn-hover); }
+
+/* Fractal type toggle */
+.fractal-type-toggle {
+  display: flex;
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 3px;
+  margin-bottom: 8px;
+}
+.fractal-type-toggle button {
+  flex: 1;
+  padding: 5px 0;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.fractal-type-toggle button.active {
+  background: #bc8cff;
+  color: #000;
+  font-weight: 600;
+}
+
+/* Collapsible sections */
+.section {
+  border-bottom: 1px solid var(--border);
+}
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dim);
+  transition: color 0.15s;
+}
+.section-header:hover { color: var(--text); }
+.section-header .arrow {
+  transition: transform 0.2s;
+  font-size: 10px;
+}
+.section.collapsed .arrow { transform: rotate(-90deg); }
+.section-body {
+  padding: 0 12px 12px;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+.section.collapsed .section-body {
+  max-height: 0 !important;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+/* Form controls */
+.control-group {
+  margin-bottom: 10px;
+}
+.control-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+.control-label span:last-child {
+  font-family: 'SF Mono', monospace;
+  color: var(--accent);
+  font-size: 11px;
+}
+input[type="range"] {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: 2px solid var(--bg);
+}
+input[type="number"], input[type="text"] {
+  width: 100%;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 12px;
+  font-family: 'SF Mono', monospace;
+  outline: none;
+}
+input[type="number"]:focus, input[type="text"]:focus {
+  border-color: var(--accent);
+}
+.slider-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.slider-input-row input[type="range"] { flex: 1; }
+.slider-input-row input[type="number"] { width: 72px; flex-shrink: 0; }
+
+/* Preset grid */
+.preset-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.preset-btn {
+  padding: 8px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--btn-bg);
+  color: var(--text);
+  font-size: 11px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s;
+  line-height: 1.3;
+}
+.preset-btn:hover { border-color: var(--accent); background: var(--section-bg); }
+.preset-btn.active { border-color: var(--accent); background: rgba(88,166,255,0.15); }
+.preset-btn .preset-name { font-weight: 600; font-size: 12px; }
+.preset-btn .preset-val { color: var(--text-dim); font-size: 10px; font-family: monospace; }
+
+/* Color scheme buttons */
+.color-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.color-btn {
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--btn-bg);
+  color: var(--text);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.color-btn:hover { border-color: var(--accent); }
+.color-btn.active { border-color: var(--accent); background: rgba(88,166,255,0.15); }
+.color-swatch {
+  width: 32px;
+  height: 14px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+/* Gradient Editor */
+.gradient-editor {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.gradient-editor-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.gradient-editor-title button {
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--btn-bg);
+  color: var(--text-dim);
+  font-size: 10px;
+  cursor: pointer;
+}
+.gradient-editor-title button:hover { border-color: var(--accent); color: var(--accent); }
+.gradient-preview-bar {
+  position: relative;
+  height: 24px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  margin-bottom: 4px;
+}
+.gradient-stop {
+  position: absolute;
+  top: 22px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  cursor: grab;
+  transform: translateX(-50%);
+  z-index: 2;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+  transition: box-shadow 0.1s;
+}
+.gradient-stop:hover { box-shadow: 0 0 0 3px rgba(88,166,255,0.4); }
+.gradient-stop.selected { box-shadow: 0 0 0 3px var(--accent); }
+.gradient-stop.edge { cursor: default; }
+.gradient-stops-container {
+  position: relative;
+  height: 42px;
+  margin-bottom: 4px;
+}
+.gradient-stop-controls {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-top: 6px;
+}
+.gradient-stop-controls label {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.gradient-stop-controls input[type="color"] {
+  width: 28px;
+  height: 22px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+}
+.gradient-stop-controls input[type="number"] {
+  width: 60px;
+  padding: 3px 6px;
+  font-size: 11px;
+}
+.gradient-stop-controls button {
+  padding: 3px 8px;
+  border: 1px solid var(--danger);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--danger);
+  font-size: 10px;
+  cursor: pointer;
+}
+.gradient-stop-controls button:hover { background: rgba(248,81,73,0.15); }
+.gradient-help {
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-top: 4px;
+  font-style: italic;
+}
+
+/* Navigation grid */
+.nav-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  width: 120px;
+  margin: 0 auto 10px;
+}
+.nav-grid button {
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--btn-bg);
+  color: var(--text);
+  font-size: 14px;
+  cursor: pointer;
+}
+.nav-grid button:hover { background: var(--btn-hover); }
+.zoom-btns {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.zoom-btns button {
+  flex: 1;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--btn-bg);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 13px;
+}
+.zoom-btns button:hover { background: var(--btn-hover); }
+
+/* Animation controls */
+.anim-playback {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.play-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+.play-btn:hover { background: rgba(88,166,255,0.15); }
+.anim-progress {
+  flex: 1;
+  height: 4px;
+  -webkit-appearance: none;
+  background: var(--border);
+  border-radius: 2px;
+  outline: none;
+}
+.anim-progress::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+}
+.anim-type-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.anim-type-btn {
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--btn-bg);
+  color: var(--text-dim);
+  font-size: 11px;
+  cursor: pointer;
+}
+.anim-type-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(88,166,255,0.1); }
+
+/* Quality radio buttons */
+.quality-presets {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.quality-btn {
+  flex: 1;
+  padding: 6px 4px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--btn-bg);
+  color: var(--text-dim);
+  font-size: 11px;
+  text-align: center;
+  cursor: pointer;
+}
+.quality-btn.active { border-color: var(--accent); color: var(--accent); }
+.quality-btn .q-iters { font-size: 9px; display: block; margin-top: 2px; }
+
+/* Checkbox */
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.checkbox-row input[type="checkbox"] {
+  accent-color: var(--accent);
+}
+
+/* Color picker row */
+.color-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.color-picker-row label { font-size: 12px; color: var(--text-dim); }
+.color-picker-row input[type="color"] {
+  width: 28px;
+  height: 22px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+/* Info panel */
+.info-panel {
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.info-panel h3 {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--accent);
+}
+.info-panel h4 {
+  font-size: 12px;
+  font-weight: 600;
+  margin: 8px 0 4px;
+  color: var(--text);
+}
+.info-panel p, .info-panel li {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+.info-panel ul {
+  padding-left: 16px;
+  margin-top: 4px;
+}
+
+/* Performance info */
+.perf-info {
+  display: flex;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--text-dim);
+  font-family: 'SF Mono', monospace;
+}
+
+/* Custom favorites */
+.favorites-section {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.favorites-section .fav-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+.fav-slots {
+  display: flex;
+  gap: 4px;
+}
+.fav-slot {
+  flex: 1;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--btn-bg);
+  color: var(--text-dim);
+  font-size: 10px;
+  cursor: pointer;
+  text-align: center;
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.fav-slot.filled { border-color: var(--accent); color: var(--text); font-family: monospace; }
+.fav-slot:hover { background: var(--btn-hover); }
+.save-fav-btn {
+  width: 100%;
+  padding: 5px;
+  margin-top: 6px;
+  border: 1px dashed var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 11px;
+  cursor: pointer;
+}
+.save-fav-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Coordinate inputs */
+.coord-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.coord-row input { flex: 1; }
+.coord-row button {
+  padding: 5px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--accent);
+  font-size: 12px;
+  cursor: pointer;
+}
+.coord-row button:hover { background: rgba(88,166,255,0.15); }
+
+/* Responsive */
+@media (max-width: 900px) {
+  .app { flex-direction: column; }
+  .canvas-area { flex: none; height: 50vh; }
+  .control-panel {
+    width: 100%;
+    height: 50vh;
+    border-left: none;
+    border-top: 1px solid var(--border);
+  }
+}
+@media (max-width: 600px) {
+  .header h1 { font-size: 14px; }
+  .canvas-area { height: 45vh; }
+  .control-panel { height: 55vh; }
+  :root { --panel-width: 100%; }
+}
+
+/* Focus styles */
+button:focus-visible, input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Julia Set Explorer</h1>
+  <span class="mode-badge" id="modeBadge">Julia Set</span>
+</div>
+
+<div class="app" id="appContainer">
+  <!-- Canvas area (holds one or two canvases) -->
+  <div class="canvas-area">
+    <!-- Primary canvas -->
+    <div class="canvas-container" id="canvasContainer">
+      <canvas id="fractalCanvas"></canvas>
+      <div class="canvas-overlay overlay-coords" id="overlayCoords">z = 0.000 + 0.000i</div>
+      <div class="canvas-overlay overlay-zoom" id="overlayZoom">1x</div>
+      <div class="canvas-overlay overlay-label" id="overlayLabel" style="display:none;">Mandelbrot</div>
+    </div>
+    <!-- Split view second canvas -->
+    <div class="canvas-container" id="splitContainer">
+      <canvas id="splitCanvas"></canvas>
+      <div class="canvas-overlay overlay-coords" id="splitOverlayCoords">z = 0.000 + 0.000i</div>
+      <div class="canvas-overlay overlay-zoom" id="splitOverlayZoom">1x</div>
+      <div class="canvas-overlay overlay-label" id="splitOverlayLabel" style="display:none;">Julia Set</div>
+      <!-- crosshair marker -->
+      <div class="split-crosshair" id="splitCrosshair" style="display:none;">
+        <div class="split-crosshair-h" style="position:absolute; top:0; left:-10px;"></div>
+        <div class="split-crosshair-v" style="position:absolute; left:0; top:-10px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="control-panel">
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+      <!-- Fractal type (Standard / Burning Ship) -->
+      <div class="fractal-type-toggle">
+        <button class="active" id="btnStandard" data-fractal="standard">Standard</button>
+        <button id="btnBurningShip" data-fractal="burningShip">Burning Ship</button>
+      </div>
+      <!-- View mode -->
+      <div class="mode-toggle">
+        <button class="active" id="btnJuliaMode" aria-label="Julia Set mode">Julia</button>
+        <button id="btnMandelbrotMode" aria-label="Mandelbrot Set mode">Mandelbrot</button>
+        <button id="btnSplitMode" aria-label="Split View mode">Split View</button>
+      </div>
+      <div class="action-row">
+        <button class="action-btn" id="btnSaveImage" aria-label="Save image">&#128190; Save</button>
+        <button class="action-btn" id="btnResetView" aria-label="Reset view">&#8962; Reset</button>
+        <button class="action-btn" id="btnRandom" aria-label="Random Julia set">&#127922; Random</button>
+      </div>
+    </div>
+
+    <!-- Parameters -->
+    <div class="section" id="sectionParams">
+      <div class="section-header" onclick="toggleSection('sectionParams')">
+        <span>Parameters</span><span class="arrow">&#9660;</span>
+      </div>
+      <div class="section-body" id="paramsBody">
+        <div id="juliaParams">
+          <div class="control-group">
+            <div class="control-label"><span>Real part (a)</span><span id="realDisplay">0.00</span></div>
+            <div class="slider-input-row">
+              <input type="range" id="realSlider" min="-2" max="2" step="0.01" value="0">
+              <input type="number" id="realInput" min="-2" max="2" step="0.01" value="0">
+            </div>
+          </div>
+          <div class="control-group">
+            <div class="control-label"><span>Imaginary part (b)</span><span id="imagDisplay">0.00</span></div>
+            <div class="slider-input-row">
+              <input type="range" id="imagSlider" min="-2" max="2" step="0.01" value="0">
+              <input type="number" id="imagInput" min="-2" max="2" step="0.01" value="0">
+            </div>
+          </div>
+          <div style="font-size:12px;color:var(--text-dim);text-align:center;margin-top:4px;">
+            c = <span id="cDisplay">0.00 + 0.00i</span>
+          </div>
+        </div>
+        <div id="mandelbrotParams" style="display:none;">
+          <p style="font-size:12px;color:var(--text-dim);padding:8px 0;">Exploring the Mandelbrot Set. Click on the canvas to select a c value and switch to Julia mode.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Presets -->
+    <div class="section" id="sectionPresets">
+      <div class="section-header" onclick="toggleSection('sectionPresets')">
+        <span>Presets</span><span class="arrow">&#9660;</span>
+      </div>
+      <div class="section-body">
+        <div class="preset-grid" id="presetGrid"></div>
+        <div class="favorites-section">
+          <div class="fav-title">My Favorites</div>
+          <div class="fav-slots" id="favSlots"></div>
+          <button class="save-fav-btn" id="btnSaveFav">+ Save current</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Color Scheme -->
+    <div class="section" id="sectionColors">
+      <div class="section-header" onclick="toggleSection('sectionColors')">
+        <span>Color Scheme</span><span class="arrow">&#9660;</span>
+      </div>
+      <div class="section-body">
+        <div class="color-grid" id="colorGrid"></div>
+        <div style="margin-top:10px;">
+          <div class="color-picker-row">
+            <label>Interior:</label>
+            <input type="color" id="interiorColor" value="#000000">
+          </div>
+          <label class="checkbox-row">
+            <input type="checkbox" id="invertColors"> Invert colors
+          </label>
+          <div class="control-group">
+            <div class="control-label"><span>Banding</span><span id="bandingDisplay">1</span></div>
+            <input type="range" id="bandingSlider" min="1" max="20" step="1" value="1">
+          </div>
+        </div>
+        <!-- Custom Gradient Editor -->
+        <div class="gradient-editor" id="gradientEditor">
+          <div class="gradient-editor-title">
+            <span>Custom Gradient</span>
+            <button id="btnApplyGradient">Apply</button>
+          </div>
+          <div class="gradient-preview-bar" id="gradientBar"></div>
+          <div class="gradient-stops-container" id="gradientStopsContainer"></div>
+          <div class="gradient-stop-controls" id="gradientStopControls" style="display:none;">
+            <label>Color:</label>
+            <input type="color" id="stopColorPicker" value="#ffffff">
+            <label>Pos:</label>
+            <input type="number" id="stopPosition" min="0" max="100" step="1" value="50">
+            <button id="btnDeleteStop">Del</button>
+          </div>
+          <div class="gradient-help">Click the gradient bar to add stops. Drag stops to reposition. Click a stop to select it.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation -->
+    <div class="section collapsed" id="sectionNav">
+      <div class="section-header" onclick="toggleSection('sectionNav')">
+        <span>Navigation</span><span class="arrow">&#9660;</span>
+      </div>
+      <div class="section-body">
+        <div class="zoom-btns">
+          <button id="btnZoomIn">+ Zoom In</button>
+          <button id="btnZoomOut">- Zoom Out</button>
+        </div>
+        <div class="nav-grid">
+          <div></div><button id="btnUp" aria-label="Pan up">&uarr;</button><div></div>
+          <button id="btnLeft" aria-label="Pan left">&larr;</button>
+          <button id="btnResetNav" aria-label="Reset">&#8962;</button>
+          <button id="btnRight" aria-label="Pan right">&rarr;</button>
+          <div></div><button id="btnDown" aria-label="Pan down">&darr;</button><div></div>
+        </div>
+        <div class="control-group">
+          <div class="control-label"><span>Go to coordinates</span></div>
+          <div class="coord-row">
+            <input type="number" id="navReal" step="0.01" placeholder="Real">
+            <input type="number" id="navImag" step="0.01" placeholder="Imag">
+            <button id="btnGoCoord">Go</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Animation -->
+    <div class="section collapsed" id="sectionAnim">
+      <div class="section-header" onclick="toggleSection('sectionAnim')">
+        <span>Animation</span><span class="arrow">&#9660;</span>
+      </div>
+      <div class="section-body">
+        <div class="anim-playback">
+          <button class="play-btn" id="btnPlayPause" aria-label="Play/Pause">&#9654;</button>
+          <input type="range" class="anim-progress" id="animProgress" min="0" max="1" step="0.001" value="0">
+        </div>
+        <div class="anim-type-btns">
+          <button class="anim-type-btn active" data-type="circular">Circular</button>
+          <button class="anim-type-btn" data-type="linear">Linear</button>
+          <button class="anim-type-btn" data-type="tour">Preset Tour</button>
+        </div>
+        <div class="control-group">
+          <div class="control-label"><span>Speed</span><span id="speedDisplay">1.0x</span></div>
+          <input type="range" id="speedSlider" min="0.1" max="5" step="0.1" value="1">
+        </div>
+        <label class="checkbox-row">
+          <input type="checkbox" id="loopAnim" checked> Loop animation
+        </label>
+      </div>
+    </div>
+
+    <!-- Quality -->
+    <div class="section collapsed" id="sectionQuality">
+      <div class="section-header" onclick="toggleSection('sectionQuality')">
+        <span>Quality</span><span class="arrow">&#9660;</span>
+      </div>
+      <div class="section-body">
+        <div class="quality-presets">
+          <button class="quality-btn" data-iters="100">Low<span class="q-iters">100</span></button>
+          <button class="quality-btn active" data-iters="250">Med<span class="q-iters">250</span></button>
+          <button class="quality-btn" data-iters="500">High<span class="q-iters">500</span></button>
+          <button class="quality-btn" data-iters="1000">Ultra<span class="q-iters">1000</span></button>
+        </div>
+        <div class="control-group">
+          <div class="control-label"><span>Max iterations</span><span id="iterDisplay">250</span></div>
+          <input type="range" id="iterSlider" min="50" max="1000" step="10" value="250">
+        </div>
+        <label class="checkbox-row">
+          <input type="checkbox" id="aaToggle"> Anti-aliasing (2x)
+        </label>
+        <label class="checkbox-row">
+          <input type="checkbox" id="progressiveToggle" checked> Progressive rendering
+        </label>
+        <div class="perf-info" style="margin-top:8px;">
+          <span>FPS: <span id="fpsDisplay">--</span></span>
+          <span>Render: <span id="renderTimeDisplay">--</span>ms</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Save/Export -->
+    <div class="section collapsed" id="sectionExport">
+      <div class="section-header" onclick="toggleSection('sectionExport')">
+        <span>Save &amp; Export</span><span class="arrow">&#9660;</span>
+      </div>
+      <div class="section-body">
+        <div class="action-row" style="margin-bottom:8px;">
+          <button class="action-btn" id="btnSavePng1x">PNG 1x</button>
+          <button class="action-btn" id="btnSavePng2x">PNG 2x</button>
+          <button class="action-btn" id="btnSavePng4x">PNG 4x</button>
+        </div>
+        <div class="action-row">
+          <button class="action-btn" id="btnSaveState">&#128190; Save State</button>
+          <button class="action-btn" id="btnLoadState">&#128194; Load State</button>
+        </div>
+        <input type="file" id="stateFileInput" accept=".json" style="display:none">
+      </div>
+    </div>
+
+    <!-- Info Panel -->
+    <div class="info-panel">
+      <h3>About the Fractals</h3>
+      <h4>Julia Sets</h4>
+      <p>Defined by z<sub>n+1</sub> = z<sub>n</sub>&sup2; + c. Each point is tested for escape to infinity. The constant c determines the shape.</p>
+      <h4>The Mandelbrot Set</h4>
+      <p>The set of all c for which the Julia set is connected. Each point maps to a unique Julia set. Use Split View to see this relationship live.</p>
+      <h4>Burning Ship Fractal</h4>
+      <p>A variant using z<sub>n+1</sub> = (|Re(z<sub>n</sub>)| + i|Im(z<sub>n</sub>)|)&sup2; + c. The absolute values create sharp, asymmetric structures resembling a burning ship.</p>
+      <h4>Tips</h4>
+      <ul>
+        <li><strong>Split View:</strong> See Mandelbrot + Julia side by side; click left to update right</li>
+        <li><strong>Zoom:</strong> Scroll to zoom, drag to pan</li>
+        <li><strong>Burning Ship:</strong> Try zooming into the "antenna" regions</li>
+        <li><strong>Custom Gradient:</strong> Click the gradient bar to add color stops</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== STATE =====
+const state = {
+  mode: 'julia',           // 'julia' | 'mandelbrot' | 'split'
+  fractalType: 'standard', // 'standard' | 'burningShip'
+  cReal: -0.4,
+  cImag: 0.6,
+  view: { centerReal: 0, centerImag: 0, width: 4, height: 4 },
+  mandelbrotView: { centerReal: -0.5, centerImag: 0, width: 3.5, height: 3 },
+  splitJuliaView: { centerReal: 0, centerImag: 0, width: 4, height: 4 },
+  maxIter: 250,
+  colorScheme: 'classic',
+  interiorColor: '#000000',
+  invertColors: false,
+  banding: 1,
+  antiAliasing: false,
+  progressive: true,
+  animating: false,
+  animType: 'circular',
+  animSpeed: 1.0,
+  animLoop: true,
+  animT: 0,
+  favorites: Array(5).fill(null)
+};
+
+let savedJuliaView = { ...state.view };
+let savedMandelbrotView = { ...state.mandelbrotView };
+
+// ===== PRESETS =====
+const PRESETS = [
+  { key: 'spiral',       name: 'Spiral',          real: -0.4,      imag: 0.6,     desc: 'Swirling patterns' },
+  { key: 'rabbit',       name: 'Rabbit',          real: -0.123,    imag: 0.745,   desc: 'Three-fold symmetry' },
+  { key: 'dendrite',     name: 'Dendrite',        real: 0.0,       imag: 1.0,     desc: 'Branching structure' },
+  { key: 'dragon',       name: 'Dragon',          real: -0.8,      imag: 0.156,   desc: 'Dragon curve' },
+  { key: 'sanMarco',     name: 'San Marco',       real: -0.75,     imag: 0.0,     desc: 'Basilica symmetry' },
+  { key: 'siegelDisk',   name: 'Siegel Disk',     real: -0.391,    imag: -0.587,  desc: 'Circular disk' },
+  { key: 'douadyRabbit', name: "Douady's Rabbit", real: -0.122561, imag: 0.74486, desc: 'Precision rabbit' },
+  { key: 'galaxy',       name: 'Galaxy',          real: -0.70176,  imag: -0.3842, desc: 'Spiral galaxy' }
+];
+
+// ===== COLOR SCHEMES =====
+const COLOR_SCHEMES = {
+  classic:     [{ s:0, c:'#000000' },{ s:0.16, c:'#0000aa' },{ s:0.5, c:'#00ffff' },{ s:1, c:'#ffffff' }],
+  fire:        [{ s:0, c:'#000000' },{ s:0.25, c:'#8b0000' },{ s:0.5, c:'#ff4500' },{ s:0.75, c:'#ffff00' },{ s:1, c:'#ffffff' }],
+  ice:         [{ s:0, c:'#001f3f' },{ s:0.33, c:'#0074d9' },{ s:0.67, c:'#7fdbff' },{ s:1, c:'#ffffff' }],
+  rainbow:     [{ s:0, c:'#ff0000' },{ s:0.17, c:'#ff7f00' },{ s:0.33, c:'#ffff00' },{ s:0.5, c:'#00ff00' },{ s:0.67, c:'#00ffff' },{ s:0.83, c:'#0000ff' },{ s:1, c:'#8b00ff' }],
+  monochrome:  [{ s:0, c:'#000000' },{ s:0.5, c:'#808080' },{ s:1, c:'#ffffff' }],
+  psychedelic: [{ s:0, c:'#9b59b6' },{ s:0.25, c:'#e91e63' },{ s:0.5, c:'#ff9800' },{ s:0.75, c:'#ffeb3b' },{ s:1, c:'#4caf50' }],
+  ocean:       [{ s:0, c:'#000080' },{ s:0.33, c:'#0080ff' },{ s:0.67, c:'#40e0d0' },{ s:1, c:'#f0fff0' }],
+  sunset:      [{ s:0, c:'#2c003e' },{ s:0.33, c:'#ff6b35' },{ s:0.67, c:'#ff8dc7' },{ s:1, c:'#ffd5cd' }],
+  custom:      [{ s:0, c:'#000000' },{ s:0.5, c:'#ff00ff' },{ s:1, c:'#ffffff' }]
+};
+
+// ===== CUSTOM GRADIENT STATE =====
+let customStops = [
+  { pos: 0, color: '#000000' },
+  { pos: 0.5, color: '#ff00ff' },
+  { pos: 1, color: '#ffffff' }
+];
+let selectedStopIdx = -1;
+let draggingStopIdx = -1;
+
+// ===== DOM REFS =====
+const canvas = document.getElementById('fractalCanvas');
+const ctx = canvas.getContext('2d');
+const container = document.getElementById('canvasContainer');
+const splitCanvas = document.getElementById('splitCanvas');
+const splitCtx = splitCanvas.getContext('2d');
+const splitContainer = document.getElementById('splitContainer');
+
+// ===== COLOR PALETTE CACHE =====
+let colorPalette = null;
+
+function hexToRgb(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+function buildColorPalette() {
+  const scheme = COLOR_SCHEMES[state.colorScheme];
+  const size = 2048;
+  const palette = new Uint8Array(size * 3);
+  for (let i = 0; i < size; i++) {
+    let t = i / (size - 1);
+    let seg = 0;
+    for (let j = 1; j < scheme.length; j++) {
+      if (t <= scheme[j].s) { seg = j - 1; break; }
+      if (j === scheme.length - 1) seg = j - 1;
+    }
+    const s0 = scheme[seg], s1 = scheme[seg + 1];
+    const localT = s1.s === s0.s ? 0 : (t - s0.s) / (s1.s - s0.s);
+    const c0 = hexToRgb(s0.c), c1 = hexToRgb(s1.c);
+    palette[i*3]   = Math.round(c0[0] + (c1[0] - c0[0]) * localT);
+    palette[i*3+1] = Math.round(c0[1] + (c1[1] - c0[1]) * localT);
+    palette[i*3+2] = Math.round(c0[2] + (c1[2] - c0[2]) * localT);
+  }
+  if (state.invertColors) {
+    for (let i = 0; i < size * 3; i++) palette[i] = 255 - palette[i];
+  }
+  colorPalette = palette;
+}
+
+// ===== WEB WORKER =====
+// The worker handles standard Julia/Mandelbrot AND Burning Ship
+const workerCode = `
+self.onmessage = function(e) {
+  const { width, height, centerReal, centerImag, viewWidth, viewHeight, cReal, cImag, maxIter, mode, fractalType, startRow, endRow, pass } = e.data;
+  const step = pass || 1;
+  const pixelData = [];
+  const isBurningShip = fractalType === 'burningShip';
+
+  for (let py = startRow; py < endRow; py += step) {
+    for (let px = 0; px < width; px += step) {
+      const x0 = centerReal - viewWidth/2 + (px / width) * viewWidth;
+      const y0 = centerImag - viewHeight/2 + (py / height) * viewHeight;
+
+      let x, y, cr, ci;
+      if (mode === 'mandelbrot') {
+        x = 0; y = 0; cr = x0; ci = y0;
+      } else {
+        x = x0; y = y0; cr = cReal; ci = cImag;
+      }
+
+      let iter = 0;
+      if (isBurningShip) {
+        // Burning Ship: z = (|Re(z)| + i*|Im(z)|)^2 + c
+        while (x*x + y*y <= 4.0 && iter < maxIter) {
+          const ax = Math.abs(x), ay = Math.abs(y);
+          const xt = ax*ax - ay*ay + cr;
+          y = 2*ax*ay + ci;
+          x = xt;
+          iter++;
+        }
+      } else {
+        // Standard Julia/Mandelbrot
+        while (x*x + y*y <= 4.0 && iter < maxIter) {
+          const xt = x*x - y*y + cr;
+          y = 2*x*y + ci;
+          x = xt;
+          iter++;
+        }
+      }
+
+      let smoothIter = iter;
+      if (iter < maxIter) {
+        const log_zn = Math.log(x*x + y*y) / 2;
+        const nu = Math.log(log_zn / Math.log(2)) / Math.log(2);
+        smoothIter = iter + 1 - nu;
+      }
+
+      pixelData.push(px, py, smoothIter);
+    }
+  }
+
+  self.postMessage({ pixelData: new Float64Array(pixelData), startRow, endRow, pass: step });
+};
+`;
+const workerBlob = new Blob([workerCode], { type: 'application/javascript' });
+const workerUrl = URL.createObjectURL(workerBlob);
+const numWorkers = Math.min(navigator.hardwareConcurrency || 4, 8);
+let workers = [];
+let splitWorkers = [];
+for (let i = 0; i < numWorkers; i++) {
+  workers.push(new Worker(workerUrl));
+  splitWorkers.push(new Worker(workerUrl));
+}
+
+// ===== RENDERING =====
+let renderGeneration = 0;
+let splitRenderGeneration = 0;
+let lastRenderTime = 0;
+let fpsFrames = [];
+
+function getCurrentView() {
+  if (state.mode === 'mandelbrot') return state.mandelbrotView;
+  if (state.mode === 'split') return state.mandelbrotView;
+  return state.view;
+}
+
+function renderToCanvas(targetCanvas, targetCtx, targetWorkers, view, mode, gen, genProp, onDone) {
+  const w = targetCanvas.width;
+  const h = targetCanvas.height;
+
+  buildColorPalette();
+
+  const passes = state.progressive ? [4, 2, 1] : [1];
+  let passIdx = 0;
+
+  function runPass() {
+    if (gen !== window[genProp]) return;
+    const pass = passes[passIdx];
+    const rowsPerWorker = Math.ceil(h / numWorkers);
+    let completed = 0;
+    const imgData = targetCtx.getImageData(0, 0, w, h);
+    const data = imgData.data;
+    const interiorRgb = hexToRgb(state.interiorColor);
+    const paletteSize = 2048;
+    const banding = state.banding;
+
+    for (let i = 0; i < numWorkers; i++) {
+      const startRow = i * rowsPerWorker;
+      const endRow = Math.min(startRow + rowsPerWorker, h);
+
+      targetWorkers[i].onmessage = function(e) {
+        if (gen !== window[genProp]) return;
+        const pd = e.data.pixelData;
+        const step = e.data.pass;
+
+        for (let j = 0; j < pd.length; j += 3) {
+          const px = pd[j], py = pd[j+1], smoothIter = pd[j+2];
+          let r, g, b;
+          if (smoothIter >= state.maxIter) {
+            r = interiorRgb[0]; g = interiorRgb[1]; b = interiorRgb[2];
+          } else {
+            let t = smoothIter / state.maxIter;
+            if (banding > 1) t = Math.floor(t * banding) / banding;
+            t = t % 1;
+            const idx = Math.floor(t * (paletteSize - 1));
+            r = colorPalette[idx*3];
+            g = colorPalette[idx*3+1];
+            b = colorPalette[idx*3+2];
+          }
+          for (let dy = 0; dy < step && py+dy < h; dy++) {
+            for (let dx = 0; dx < step && px+dx < w; dx++) {
+              const off = ((py+dy) * w + (px+dx)) * 4;
+              data[off] = r; data[off+1] = g; data[off+2] = b; data[off+3] = 255;
+            }
+          }
+        }
+
+        completed++;
+        if (completed === numWorkers) {
+          if (gen !== window[genProp]) return;
+          targetCtx.putImageData(imgData, 0, 0);
+          passIdx++;
+          if (passIdx < passes.length) {
+            runPass();
+          } else if (onDone) {
+            onDone();
+          }
+        }
+      };
+
+      targetWorkers[i].postMessage({
+        width: w, height: h,
+        centerReal: view.centerReal, centerImag: view.centerImag,
+        viewWidth: view.width, viewHeight: view.height,
+        cReal: state.cReal, cImag: state.cImag,
+        maxIter: state.maxIter,
+        mode: mode,
+        fractalType: state.fractalType,
+        startRow, endRow, pass
+      });
+    }
+  }
+  runPass();
+}
+
+// Expose generation counters on window for the closure checks
+window.renderGen = 0;
+window.splitRenderGen = 0;
+
+function render() {
+  const gen = ++window.renderGen;
+  const t0 = performance.now();
+
+  if (state.mode === 'split') {
+    // Left canvas = Mandelbrot
+    renderToCanvas(canvas, ctx, workers, state.mandelbrotView, 'mandelbrot', gen, 'renderGen', () => {
+      lastRenderTime = Math.round(performance.now() - t0);
+      document.getElementById('renderTimeDisplay').textContent = lastRenderTime;
+    });
+    // Right canvas = Julia
+    renderSplit();
+  } else {
+    const view = getCurrentView();
+    const mode = state.mode;
+    renderToCanvas(canvas, ctx, workers, view, mode, gen, 'renderGen', () => {
+      lastRenderTime = Math.round(performance.now() - t0);
+      document.getElementById('renderTimeDisplay').textContent = lastRenderTime;
+    });
+  }
+}
+
+function renderSplit() {
+  const gen = ++window.splitRenderGen;
+  renderToCanvas(splitCanvas, splitCtx, splitWorkers, state.splitJuliaView, 'julia', gen, 'splitRenderGen', null);
+}
+
+// ===== CANVAS SIZING =====
+function resizeCanvas() {
+  const rect = container.getBoundingClientRect();
+  const w = Math.floor(rect.width);
+  const h = Math.floor(rect.height);
+  const size = Math.min(w, h);
+  const dpr = state.antiAliasing ? 2 : 1;
+  canvas.width = size * dpr;
+  canvas.height = size * dpr;
+  canvas.style.width = size + 'px';
+  canvas.style.height = size + 'px';
+
+  if (state.mode === 'split') {
+    const rect2 = splitContainer.getBoundingClientRect();
+    const w2 = Math.floor(rect2.width);
+    const h2 = Math.floor(rect2.height);
+    const size2 = Math.min(w2, h2);
+    splitCanvas.width = size2 * dpr;
+    splitCanvas.height = size2 * dpr;
+    splitCanvas.style.width = size2 + 'px';
+    splitCanvas.style.height = size2 + 'px';
+  }
+  render();
+}
+
+// ===== NAVIGATION =====
+let isDragging = false;
+let dragStartX, dragStartY, dragStartView;
+let dragMoved = false;
+
+function setupCanvasNav(cvs, getView) {
+  cvs.addEventListener('mousedown', e => {
+    isDragging = true;
+    dragMoved = false;
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    dragStartView = { ...getView() };
+    cvs.style.cursor = 'grabbing';
+  });
+
+  cvs.addEventListener('wheel', e => {
+    e.preventDefault();
+    const view = getView();
+    const rect = cvs.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) / rect.width;
+    const my = (e.clientY - rect.top) / rect.height;
+    const cr = view.centerReal - view.width/2 + mx * view.width;
+    const ci = view.centerImag - view.height/2 + my * view.height;
+    const factor = e.deltaY > 0 ? 1.2 : 1/1.2;
+    view.width *= factor;
+    view.height *= factor;
+    view.centerReal = cr - (mx - 0.5) * view.width;
+    view.centerImag = ci - (my - 0.5) * view.height;
+    updateZoomDisplay();
+    if (cvs === splitCanvas) renderSplit();
+    else render();
+  }, { passive: false });
+
+  cvs.addEventListener('dblclick', e => {
+    const view = getView();
+    const rect = cvs.getBoundingClientRect();
+    const mx = (e.clientX - rect.left) / rect.width;
+    const my = (e.clientY - rect.top) / rect.height;
+    const cr = view.centerReal - view.width/2 + mx * view.width;
+    const ci = view.centerImag - view.height/2 + my * view.height;
+    view.centerReal = cr;
+    view.centerImag = ci;
+    view.width /= 2;
+    view.height /= 2;
+    updateZoomDisplay();
+    if (cvs === splitCanvas) renderSplit();
+    else render();
+  });
+
+  // Touch support
+  let lastTouchDist = 0;
+  let touchStartView = null;
+  cvs.addEventListener('touchstart', e => {
+    e.preventDefault();
+    if (e.touches.length === 1) {
+      isDragging = true;
+      dragMoved = false;
+      dragStartX = e.touches[0].clientX;
+      dragStartY = e.touches[0].clientY;
+      dragStartView = { ...getView() };
+    } else if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      lastTouchDist = Math.sqrt(dx*dx + dy*dy);
+      touchStartView = { ...getView() };
+    }
+  }, { passive: false });
+
+  cvs.addEventListener('touchmove', e => {
+    e.preventDefault();
+    const view = getView();
+    const rect = cvs.getBoundingClientRect();
+    if (e.touches.length === 1 && isDragging) {
+      dragMoved = true;
+      const dx = (e.touches[0].clientX - dragStartX) / rect.width * dragStartView.width;
+      const dy = (e.touches[0].clientY - dragStartY) / rect.height * dragStartView.height;
+      view.centerReal = dragStartView.centerReal - dx;
+      view.centerImag = dragStartView.centerImag - dy;
+      if (cvs === splitCanvas) renderSplit();
+      else render();
+    } else if (e.touches.length === 2 && touchStartView) {
+      const tdx = e.touches[0].clientX - e.touches[1].clientX;
+      const tdy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.sqrt(tdx*tdx + tdy*tdy);
+      const scale = lastTouchDist / dist;
+      view.width = touchStartView.width * scale;
+      view.height = touchStartView.height * scale;
+      updateZoomDisplay();
+      if (cvs === splitCanvas) renderSplit();
+      else render();
+      lastTouchDist = dist;
+      touchStartView = { ...view };
+    }
+  }, { passive: false });
+
+  cvs.addEventListener('touchend', () => { isDragging = false; });
+}
+
+// Primary canvas nav
+setupCanvasNav(canvas, () => {
+  if (state.mode === 'split') return state.mandelbrotView;
+  return getCurrentView();
+});
+
+// Split canvas nav
+setupCanvasNav(splitCanvas, () => state.splitJuliaView);
+
+// Global mousemove/mouseup for drag
+window.addEventListener('mousemove', e => {
+  // Update coords
+  const rect = canvas.getBoundingClientRect();
+  if (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom) {
+    const view = state.mode === 'split' ? state.mandelbrotView : getCurrentView();
+    const mx = (e.clientX - rect.left) / rect.width;
+    const my = (e.clientY - rect.top) / rect.height;
+    const cr = view.centerReal - view.width/2 + mx * view.width;
+    const ci = view.centerImag - view.height/2 + my * view.height;
+    document.getElementById('overlayCoords').textContent =
+      `z = ${cr.toFixed(4)} ${ci >= 0 ? '+' : '-'} ${Math.abs(ci).toFixed(4)}i`;
+
+    // In split mode, show crosshair on julia canvas indicating c value
+    if (state.mode === 'split') {
+      updateSplitCrosshair(cr, ci);
+    }
+  }
+
+  // Also update split canvas coords
+  if (state.mode === 'split') {
+    const rect2 = splitCanvas.getBoundingClientRect();
+    if (e.clientX >= rect2.left && e.clientX <= rect2.right && e.clientY >= rect2.top && e.clientY <= rect2.bottom) {
+      const view = state.splitJuliaView;
+      const mx = (e.clientX - rect2.left) / rect2.width;
+      const my = (e.clientY - rect2.top) / rect2.height;
+      const cr = view.centerReal - view.width/2 + mx * view.width;
+      const ci = view.centerImag - view.height/2 + my * view.height;
+      document.getElementById('splitOverlayCoords').textContent =
+        `z = ${cr.toFixed(4)} ${ci >= 0 ? '+' : '-'} ${Math.abs(ci).toFixed(4)}i`;
+    }
+  }
+
+  if (!isDragging) return;
+  dragMoved = true;
+
+  // Determine which canvas we're dragging on
+  const primaryRect = canvas.getBoundingClientRect();
+  let view;
+  let isSplit = false;
+  if (state.mode === 'split') {
+    const splitRect = splitCanvas.getBoundingClientRect();
+    if (dragStartX >= splitRect.left && dragStartX <= splitRect.right) {
+      view = state.splitJuliaView;
+      isSplit = true;
+      const dx = (e.clientX - dragStartX) / splitRect.width * dragStartView.width;
+      const dy = (e.clientY - dragStartY) / splitRect.height * dragStartView.height;
+      view.centerReal = dragStartView.centerReal - dx;
+      view.centerImag = dragStartView.centerImag - dy;
+      renderSplit();
+      return;
+    }
+    view = state.mandelbrotView;
+  } else {
+    view = getCurrentView();
+  }
+  const dx = (e.clientX - dragStartX) / primaryRect.width * dragStartView.width;
+  const dy = (e.clientY - dragStartY) / primaryRect.height * dragStartView.height;
+  view.centerReal = dragStartView.centerReal - dx;
+  view.centerImag = dragStartView.centerImag - dy;
+  render();
+});
+
+window.addEventListener('mouseup', () => {
+  if (isDragging) {
+    isDragging = false;
+    canvas.style.cursor = 'crosshair';
+    splitCanvas.style.cursor = 'crosshair';
+  }
+});
+
+// Click on primary canvas
+canvas.addEventListener('click', e => {
+  if (dragMoved) return;
+  const rect = canvas.getBoundingClientRect();
+  const view = state.mode === 'split' ? state.mandelbrotView : getCurrentView();
+  const mx = (e.clientX - rect.left) / rect.width;
+  const my = (e.clientY - rect.top) / rect.height;
+  const cr = view.centerReal - view.width/2 + mx * view.width;
+  const ci = view.centerImag - view.height/2 + my * view.height;
+
+  if (state.mode === 'mandelbrot') {
+    state.cReal = cr;
+    state.cImag = ci;
+    updateParamUI();
+    setMode('julia');
+  } else if (state.mode === 'split') {
+    // In split mode, click on Mandelbrot updates Julia
+    state.cReal = cr;
+    state.cImag = ci;
+    updateParamUI();
+    renderSplit();
+  }
+});
+
+function updateSplitCrosshair(cr, ci) {
+  // No visual crosshair needed since the Julia canvas just updates on click
+}
+
+function updateZoomDisplay() {
+  const defaultW = (state.mode === 'mandelbrot' || state.mode === 'split') ? 3.5 : 4;
+  const view = state.mode === 'split' ? state.mandelbrotView : getCurrentView();
+  const zoom = defaultW / view.width;
+  document.getElementById('overlayZoom').textContent = zoom >= 1000 ? zoom.toExponential(1) + 'x' : Math.round(zoom) + 'x';
+
+  if (state.mode === 'split') {
+    const zoom2 = 4 / state.splitJuliaView.width;
+    document.getElementById('splitOverlayZoom').textContent = zoom2 >= 1000 ? zoom2.toExponential(1) + 'x' : Math.round(zoom2) + 'x';
+  }
+}
+
+// ===== MODE TOGGLE =====
+function setMode(mode) {
+  // Save views
+  if (state.mode === 'julia') savedJuliaView = { ...state.view };
+  else if (state.mode === 'mandelbrot') savedMandelbrotView = { ...state.mandelbrotView };
+
+  state.mode = mode;
+
+  // Restore views
+  if (mode === 'julia') {
+    state.view = { ...savedJuliaView };
+  } else if (mode === 'mandelbrot') {
+    state.mandelbrotView = { ...savedMandelbrotView };
+  } else if (mode === 'split') {
+    state.mandelbrotView = { ...savedMandelbrotView };
+  }
+
+  const app = document.getElementById('appContainer');
+  app.classList.toggle('split-mode', mode === 'split');
+
+  document.getElementById('btnJuliaMode').classList.toggle('active', mode === 'julia');
+  document.getElementById('btnMandelbrotMode').classList.toggle('active', mode === 'mandelbrot');
+  document.getElementById('btnSplitMode').classList.toggle('active', mode === 'split');
+
+  const labels = {
+    julia: 'Julia Set',
+    mandelbrot: 'Mandelbrot Set',
+    split: 'Split View'
+  };
+  document.getElementById('modeBadge').textContent = labels[mode];
+
+  // Show/hide labels
+  document.getElementById('overlayLabel').style.display = mode === 'split' ? '' : 'none';
+  document.getElementById('overlayLabel').textContent = 'Mandelbrot';
+  document.getElementById('splitOverlayLabel').style.display = mode === 'split' ? '' : 'none';
+  document.getElementById('splitOverlayLabel').textContent = 'Julia Set';
+
+  // Params UI
+  const showJuliaParams = mode === 'julia' || mode === 'split';
+  document.getElementById('juliaParams').style.display = showJuliaParams ? '' : 'none';
+  document.getElementById('mandelbrotParams').style.display = mode === 'mandelbrot' ? '' : 'none';
+
+  updateZoomDisplay();
+  // Delay resize slightly for split mode layout change
+  requestAnimationFrame(() => resizeCanvas());
+}
+
+document.getElementById('btnJuliaMode').addEventListener('click', () => setMode('julia'));
+document.getElementById('btnMandelbrotMode').addEventListener('click', () => setMode('mandelbrot'));
+document.getElementById('btnSplitMode').addEventListener('click', () => setMode('split'));
+
+// ===== FRACTAL TYPE =====
+document.querySelectorAll('.fractal-type-toggle button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.fractal-type-toggle button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.fractalType = btn.dataset.fractal;
+
+    // Adjust default view for Burning Ship
+    if (state.fractalType === 'burningShip' && state.mode !== 'split') {
+      if (state.mode === 'mandelbrot') {
+        state.mandelbrotView = { centerReal: -0.4, centerImag: -0.6, width: 4, height: 3.5 };
+      }
+    }
+    render();
+    if (state.mode === 'split') renderSplit();
+  });
+});
+
+// ===== PARAMETER CONTROLS =====
+function updateParamUI() {
+  document.getElementById('realSlider').value = state.cReal;
+  document.getElementById('realInput').value = state.cReal;
+  document.getElementById('realDisplay').textContent = state.cReal.toFixed(3);
+  document.getElementById('imagSlider').value = state.cImag;
+  document.getElementById('imagInput').value = state.cImag;
+  document.getElementById('imagDisplay').textContent = state.cImag.toFixed(3);
+  const sign = state.cImag >= 0 ? '+' : '-';
+  document.getElementById('cDisplay').textContent = `${state.cReal.toFixed(3)} ${sign} ${Math.abs(state.cImag).toFixed(3)}i`;
+
+  document.querySelectorAll('.preset-btn').forEach(btn => {
+    const p = PRESETS.find(pr => pr.key === btn.dataset.key);
+    btn.classList.toggle('active', p && Math.abs(p.real - state.cReal) < 0.001 && Math.abs(p.imag - state.cImag) < 0.001);
+  });
+}
+
+function onParamChange(source) {
+  if (source === 'slider') {
+    state.cReal = parseFloat(document.getElementById('realSlider').value);
+    state.cImag = parseFloat(document.getElementById('imagSlider').value);
+  } else {
+    state.cReal = parseFloat(document.getElementById('realInput').value) || 0;
+    state.cImag = parseFloat(document.getElementById('imagInput').value) || 0;
+    state.cReal = Math.max(-2, Math.min(2, state.cReal));
+    state.cImag = Math.max(-2, Math.min(2, state.cImag));
+  }
+  updateParamUI();
+  if (state.mode === 'split') renderSplit();
+  else render();
+}
+
+document.getElementById('realSlider').addEventListener('input', () => onParamChange('slider'));
+document.getElementById('imagSlider').addEventListener('input', () => onParamChange('slider'));
+document.getElementById('realInput').addEventListener('change', () => onParamChange('input'));
+document.getElementById('imagInput').addEventListener('change', () => onParamChange('input'));
+
+// ===== PRESETS =====
+function buildPresets() {
+  const grid = document.getElementById('presetGrid');
+  grid.innerHTML = '';
+  PRESETS.forEach(p => {
+    const btn = document.createElement('button');
+    btn.className = 'preset-btn';
+    btn.dataset.key = p.key;
+    btn.title = `c = ${p.real} + ${p.imag}i - ${p.desc}`;
+    btn.innerHTML = `<div class="preset-name">${p.name}</div><div class="preset-val">${p.real} ${p.imag >= 0 ? '+' : '-'} ${Math.abs(p.imag)}i</div>`;
+    btn.addEventListener('click', () => {
+      state.cReal = p.real;
+      state.cImag = p.imag;
+      updateParamUI();
+      if (state.mode === 'split') renderSplit();
+      else if (state.mode !== 'julia') setMode('julia');
+      else render();
+    });
+    grid.appendChild(btn);
+  });
+}
+
+// ===== FAVORITES =====
+function buildFavorites() {
+  const favContainer = document.getElementById('favSlots');
+  favContainer.innerHTML = '';
+  state.favorites.forEach((fav, i) => {
+    const slot = document.createElement('button');
+    slot.className = 'fav-slot' + (fav ? ' filled' : '');
+    if (fav) {
+      slot.textContent = `${fav.real.toFixed(2)}`;
+      slot.title = `c = ${fav.real} + ${fav.imag}i (right-click to delete)`;
+      slot.addEventListener('click', () => {
+        state.cReal = fav.real;
+        state.cImag = fav.imag;
+        updateParamUI();
+        if (state.mode === 'split') renderSplit();
+        else if (state.mode !== 'julia') setMode('julia');
+        else render();
+      });
+      slot.addEventListener('contextmenu', e => {
+        e.preventDefault();
+        state.favorites[i] = null;
+        saveFavoritesToStorage();
+        buildFavorites();
+      });
+    } else {
+      slot.textContent = `${i+1}`;
+    }
+    favContainer.appendChild(slot);
+  });
+}
+
+document.getElementById('btnSaveFav').addEventListener('click', () => {
+  const emptyIdx = state.favorites.indexOf(null);
+  if (emptyIdx === -1) {
+    state.favorites.shift();
+    state.favorites.push({ real: state.cReal, imag: state.cImag });
+  } else {
+    state.favorites[emptyIdx] = { real: state.cReal, imag: state.cImag };
+  }
+  saveFavoritesToStorage();
+  buildFavorites();
+});
+
+function saveFavoritesToStorage() {
+  try { localStorage.setItem('julia-favorites', JSON.stringify(state.favorites)); } catch(e) {}
+}
+function loadFavoritesFromStorage() {
+  try {
+    const saved = localStorage.getItem('julia-favorites');
+    if (saved) state.favorites = JSON.parse(saved);
+  } catch(e) {}
+}
+
+// ===== COLOR SCHEME =====
+function buildColorGrid() {
+  const grid = document.getElementById('colorGrid');
+  grid.innerHTML = '';
+  Object.keys(COLOR_SCHEMES).forEach(key => {
+    const btn = document.createElement('button');
+    btn.className = 'color-btn' + (key === state.colorScheme ? ' active' : '');
+    const scheme = COLOR_SCHEMES[key];
+    const gradStops = scheme.map(s => `${s.c} ${s.s*100}%`).join(', ');
+    const label = key === 'custom' ? 'Custom' : key.charAt(0).toUpperCase() + key.slice(1);
+    btn.innerHTML = `<span class="color-swatch" style="background:linear-gradient(90deg, ${gradStops})"></span>${label}`;
+    btn.addEventListener('click', () => {
+      state.colorScheme = key;
+      buildColorGrid();
+      render();
+      if (state.mode === 'split') renderSplit();
+    });
+    grid.appendChild(btn);
+  });
+}
+
+document.getElementById('interiorColor').addEventListener('input', e => {
+  state.interiorColor = e.target.value;
+  render();
+  if (state.mode === 'split') renderSplit();
+});
+document.getElementById('invertColors').addEventListener('change', e => {
+  state.invertColors = e.target.checked;
+  render();
+  if (state.mode === 'split') renderSplit();
+});
+document.getElementById('bandingSlider').addEventListener('input', e => {
+  state.banding = parseInt(e.target.value);
+  document.getElementById('bandingDisplay').textContent = state.banding;
+  render();
+  if (state.mode === 'split') renderSplit();
+});
+
+// ===== CUSTOM GRADIENT EDITOR =====
+function updateGradientPreview() {
+  const bar = document.getElementById('gradientBar');
+  const sorted = [...customStops].sort((a, b) => a.pos - b.pos);
+  const gradStops = sorted.map(s => `${s.color} ${s.pos * 100}%`).join(', ');
+  bar.style.background = `linear-gradient(90deg, ${gradStops})`;
+}
+
+function renderGradientStops() {
+  const container = document.getElementById('gradientStopsContainer');
+  // Remove old stop elements
+  container.querySelectorAll('.gradient-stop').forEach(el => el.remove());
+
+  customStops.forEach((stop, i) => {
+    const el = document.createElement('div');
+    el.className = 'gradient-stop' + (i === selectedStopIdx ? ' selected' : '');
+    if (i === 0 || i === customStops.length - 1) el.classList.add('edge');
+    el.style.left = (stop.pos * 100) + '%';
+    el.style.background = stop.color;
+
+    el.addEventListener('mousedown', e => {
+      e.stopPropagation();
+      selectedStopIdx = i;
+      draggingStopIdx = i;
+      renderGradientStops();
+      updateStopControls();
+    });
+
+    el.addEventListener('click', e => {
+      e.stopPropagation();
+      selectedStopIdx = i;
+      renderGradientStops();
+      updateStopControls();
+    });
+
+    container.appendChild(el);
+  });
+
+  updateGradientPreview();
+}
+
+function updateStopControls() {
+  const controls = document.getElementById('gradientStopControls');
+  if (selectedStopIdx < 0 || selectedStopIdx >= customStops.length) {
+    controls.style.display = 'none';
+    return;
+  }
+  controls.style.display = 'flex';
+  const stop = customStops[selectedStopIdx];
+  document.getElementById('stopColorPicker').value = stop.color;
+  document.getElementById('stopPosition').value = Math.round(stop.pos * 100);
+  // Can't delete edge stops
+  document.getElementById('btnDeleteStop').style.display =
+    (selectedStopIdx === 0 || selectedStopIdx === customStops.length - 1) ? 'none' : '';
+}
+
+// Drag stops
+window.addEventListener('mousemove', e => {
+  if (draggingStopIdx < 0) return;
+  const bar = document.getElementById('gradientBar');
+  const rect = bar.getBoundingClientRect();
+  let pos = (e.clientX - rect.left) / rect.width;
+  pos = Math.max(0, Math.min(1, pos));
+  // Don't allow edge stops to move
+  if (draggingStopIdx === 0) pos = 0;
+  else if (draggingStopIdx === customStops.length - 1) pos = 1;
+  customStops[draggingStopIdx].pos = pos;
+  renderGradientStops();
+  document.getElementById('stopPosition').value = Math.round(pos * 100);
+});
+
+window.addEventListener('mouseup', () => {
+  draggingStopIdx = -1;
+});
+
+// Click gradient bar to add stop
+document.getElementById('gradientBar').addEventListener('click', e => {
+  const rect = e.target.getBoundingClientRect();
+  const pos = (e.clientX - rect.left) / rect.width;
+  // Interpolate color at this position
+  const sorted = [...customStops].sort((a, b) => a.pos - b.pos);
+  let color = '#ffffff';
+  for (let i = 0; i < sorted.length - 1; i++) {
+    if (pos >= sorted[i].pos && pos <= sorted[i+1].pos) {
+      const t = (pos - sorted[i].pos) / (sorted[i+1].pos - sorted[i].pos);
+      const c0 = hexToRgb(sorted[i].color);
+      const c1 = hexToRgb(sorted[i+1].color);
+      const r = Math.round(c0[0] + (c1[0] - c0[0]) * t);
+      const g = Math.round(c0[1] + (c1[1] - c0[1]) * t);
+      const b = Math.round(c0[2] + (c1[2] - c0[2]) * t);
+      color = '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+      break;
+    }
+  }
+  customStops.push({ pos, color });
+  customStops.sort((a, b) => a.pos - b.pos);
+  selectedStopIdx = customStops.findIndex(s => s.pos === pos && s.color === color);
+  renderGradientStops();
+  updateStopControls();
+});
+
+document.getElementById('stopColorPicker').addEventListener('input', e => {
+  if (selectedStopIdx >= 0 && selectedStopIdx < customStops.length) {
+    customStops[selectedStopIdx].color = e.target.value;
+    renderGradientStops();
+  }
+});
+
+document.getElementById('stopPosition').addEventListener('change', e => {
+  if (selectedStopIdx >= 0 && selectedStopIdx < customStops.length) {
+    if (selectedStopIdx === 0 || selectedStopIdx === customStops.length - 1) return;
+    let pos = parseInt(e.target.value) / 100;
+    pos = Math.max(0.01, Math.min(0.99, pos));
+    customStops[selectedStopIdx].pos = pos;
+    customStops.sort((a, b) => a.pos - b.pos);
+    selectedStopIdx = customStops.findIndex(s => s.pos === pos);
+    renderGradientStops();
+  }
+});
+
+document.getElementById('btnDeleteStop').addEventListener('click', () => {
+  if (selectedStopIdx > 0 && selectedStopIdx < customStops.length - 1) {
+    customStops.splice(selectedStopIdx, 1);
+    selectedStopIdx = -1;
+    renderGradientStops();
+    updateStopControls();
+  }
+});
+
+document.getElementById('btnApplyGradient').addEventListener('click', () => {
+  // Apply custom gradient as the active color scheme
+  const sorted = [...customStops].sort((a, b) => a.pos - b.pos);
+  COLOR_SCHEMES.custom = sorted.map(s => ({ s: s.pos, c: s.color }));
+  state.colorScheme = 'custom';
+  buildColorGrid();
+  render();
+  if (state.mode === 'split') renderSplit();
+});
+
+// ===== NAVIGATION BUTTONS =====
+document.getElementById('btnZoomIn').addEventListener('click', () => {
+  const view = getCurrentView();
+  view.width /= 2; view.height /= 2;
+  updateZoomDisplay(); render();
+});
+document.getElementById('btnZoomOut').addEventListener('click', () => {
+  const view = getCurrentView();
+  view.width *= 2; view.height *= 2;
+  updateZoomDisplay(); render();
+});
+document.getElementById('btnUp').addEventListener('click', () => { getCurrentView().centerImag -= getCurrentView().height * 0.25; render(); });
+document.getElementById('btnDown').addEventListener('click', () => { getCurrentView().centerImag += getCurrentView().height * 0.25; render(); });
+document.getElementById('btnLeft').addEventListener('click', () => { getCurrentView().centerReal -= getCurrentView().width * 0.25; render(); });
+document.getElementById('btnRight').addEventListener('click', () => { getCurrentView().centerReal += getCurrentView().width * 0.25; render(); });
+document.getElementById('btnResetNav').addEventListener('click', resetView);
+
+document.getElementById('btnGoCoord').addEventListener('click', () => {
+  const r = parseFloat(document.getElementById('navReal').value) || 0;
+  const i = parseFloat(document.getElementById('navImag').value) || 0;
+  const view = getCurrentView();
+  view.centerReal = r;
+  view.centerImag = i;
+  render();
+});
+
+// ===== ANIMATION =====
+let animFrame = null;
+let animLastTime = 0;
+
+function startAnimation() {
+  state.animating = true;
+  document.getElementById('btnPlayPause').innerHTML = '&#9646;&#9646;';
+  animLastTime = performance.now();
+  animLoop();
+}
+
+function stopAnimation() {
+  state.animating = false;
+  document.getElementById('btnPlayPause').innerHTML = '&#9654;';
+  if (animFrame) cancelAnimationFrame(animFrame);
+}
+
+function animLoop() {
+  if (!state.animating) return;
+  const now = performance.now();
+  const dt = (now - animLastTime) / 1000;
+  animLastTime = now;
+
+  state.animT += dt * state.animSpeed * 0.1;
+  if (state.animT > 1) {
+    if (state.animLoop) state.animT -= 1;
+    else { state.animT = 1; stopAnimation(); }
+  }
+
+  document.getElementById('animProgress').value = state.animT;
+
+  if (state.animType === 'circular') {
+    const angle = 2 * Math.PI * state.animT;
+    const radius = 0.7896;
+    state.cReal = radius * Math.cos(angle);
+    state.cImag = radius * Math.sin(angle);
+  } else if (state.animType === 'linear') {
+    state.cReal = -0.8 + state.animT * 1.6;
+    state.cImag = 0.156 + state.animT * (0.6 - 0.156);
+  } else if (state.animType === 'tour') {
+    const n = PRESETS.length;
+    const idx = state.animT * n;
+    const seg = Math.floor(idx) % n;
+    const next = (seg + 1) % n;
+    const localT = idx - Math.floor(idx);
+    const smooth = localT * localT * (3 - 2 * localT);
+    state.cReal = PRESETS[seg].real + smooth * (PRESETS[next].real - PRESETS[seg].real);
+    state.cImag = PRESETS[seg].imag + smooth * (PRESETS[next].imag - PRESETS[seg].imag);
+  }
+
+  updateParamUI();
+  if (state.mode === 'split') {
+    renderSplit();
+  } else {
+    if (state.mode !== 'julia') setMode('julia');
+    render();
+  }
+
+  // FPS
+  fpsFrames.push(now);
+  fpsFrames = fpsFrames.filter(t => t > now - 1000);
+  document.getElementById('fpsDisplay').textContent = fpsFrames.length;
+
+  animFrame = requestAnimationFrame(animLoop);
+}
+
+document.getElementById('btnPlayPause').addEventListener('click', () => {
+  if (state.animating) stopAnimation(); else startAnimation();
+});
+
+document.getElementById('animProgress').addEventListener('input', e => {
+  state.animT = parseFloat(e.target.value);
+});
+
+document.querySelectorAll('.anim-type-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.anim-type-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.animType = btn.dataset.type;
+  });
+});
+
+document.getElementById('speedSlider').addEventListener('input', e => {
+  state.animSpeed = parseFloat(e.target.value);
+  document.getElementById('speedDisplay').textContent = state.animSpeed.toFixed(1) + 'x';
+});
+document.getElementById('loopAnim').addEventListener('change', e => { state.animLoop = e.target.checked; });
+
+// ===== QUALITY =====
+document.querySelectorAll('.quality-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.quality-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.maxIter = parseInt(btn.dataset.iters);
+    document.getElementById('iterSlider').value = state.maxIter;
+    document.getElementById('iterDisplay').textContent = state.maxIter;
+    render();
+    if (state.mode === 'split') renderSplit();
+  });
+});
+
+document.getElementById('iterSlider').addEventListener('input', e => {
+  state.maxIter = parseInt(e.target.value);
+  document.getElementById('iterDisplay').textContent = state.maxIter;
+  document.querySelectorAll('.quality-btn').forEach(b => b.classList.remove('active'));
+});
+document.getElementById('iterSlider').addEventListener('change', () => {
+  render();
+  if (state.mode === 'split') renderSplit();
+});
+
+document.getElementById('aaToggle').addEventListener('change', e => {
+  state.antiAliasing = e.target.checked;
+  resizeCanvas();
+});
+
+document.getElementById('progressiveToggle').addEventListener('change', e => {
+  state.progressive = e.target.checked;
+});
+
+// ===== QUICK ACTIONS =====
+function resetView() {
+  if (state.mode === 'julia') {
+    state.view = { centerReal: 0, centerImag: 0, width: 4, height: 4 };
+    savedJuliaView = { ...state.view };
+  } else if (state.mode === 'mandelbrot' || state.mode === 'split') {
+    state.mandelbrotView = { centerReal: -0.5, centerImag: 0, width: 3.5, height: 3 };
+    savedMandelbrotView = { ...state.mandelbrotView };
+    if (state.mode === 'split') {
+      state.splitJuliaView = { centerReal: 0, centerImag: 0, width: 4, height: 4 };
+    }
+  }
+  updateZoomDisplay();
+  render();
+  if (state.mode === 'split') renderSplit();
+}
+
+document.getElementById('btnResetView').addEventListener('click', resetView);
+
+document.getElementById('btnRandom').addEventListener('click', () => {
+  const angle = Math.random() * Math.PI * 2;
+  const r = 0.5 + Math.random() * 0.3;
+  state.cReal = r * Math.cos(angle);
+  state.cImag = r * Math.sin(angle);
+  updateParamUI();
+  if (state.mode === 'split') renderSplit();
+  else if (state.mode !== 'julia') setMode('julia');
+  else render();
+});
+
+// ===== SAVE/EXPORT =====
+function saveImage(scale) {
+  const view = state.mode === 'split' ? state.mandelbrotView : getCurrentView();
+  const mode = (state.mode === 'mandelbrot' || state.mode === 'split') ? 'mandelbrot' : 'julia';
+  const w = canvas.width * scale;
+  const h = canvas.height * scale;
+  const offCanvas = document.createElement('canvas');
+  offCanvas.width = w;
+  offCanvas.height = h;
+  const offCtx = offCanvas.getContext('2d');
+
+  const imgData = offCtx.createImageData(w, h);
+  const data = imgData.data;
+  const interiorRgb = hexToRgb(state.interiorColor);
+  buildColorPalette();
+  const paletteSize = 2048;
+  const isBurningShip = state.fractalType === 'burningShip';
+
+  for (let py = 0; py < h; py++) {
+    for (let px = 0; px < w; px++) {
+      const x0 = view.centerReal - view.width/2 + (px / w) * view.width;
+      const y0 = view.centerImag - view.height/2 + (py / h) * view.height;
+      let x, y, cr, ci;
+      if (mode === 'mandelbrot') { x = 0; y = 0; cr = x0; ci = y0; }
+      else { x = x0; y = y0; cr = state.cReal; ci = state.cImag; }
+
+      let iter = 0;
+      if (isBurningShip) {
+        while (x*x + y*y <= 4 && iter < state.maxIter) {
+          const ax = Math.abs(x), ay = Math.abs(y);
+          const xt = ax*ax - ay*ay + cr;
+          y = 2*ax*ay + ci;
+          x = xt;
+          iter++;
+        }
+      } else {
+        while (x*x + y*y <= 4 && iter < state.maxIter) {
+          const xt = x*x - y*y + cr;
+          y = 2*x*y + ci;
+          x = xt;
+          iter++;
+        }
+      }
+      let smoothIter = iter;
+      if (iter < state.maxIter) {
+        const log_zn = Math.log(x*x + y*y) / 2;
+        const nu = Math.log(log_zn / Math.log(2)) / Math.log(2);
+        smoothIter = iter + 1 - nu;
+      }
+
+      let r, g, b;
+      if (smoothIter >= state.maxIter) {
+        r = interiorRgb[0]; g = interiorRgb[1]; b = interiorRgb[2];
+      } else {
+        let t = smoothIter / state.maxIter;
+        if (state.banding > 1) t = Math.floor(t * state.banding) / state.banding;
+        t = t % 1;
+        const idx = Math.floor(t * (paletteSize - 1));
+        r = colorPalette[idx*3]; g = colorPalette[idx*3+1]; b = colorPalette[idx*3+2];
+      }
+      const off = (py * w + px) * 4;
+      data[off] = r; data[off+1] = g; data[off+2] = b; data[off+3] = 255;
+    }
+  }
+  offCtx.putImageData(imgData, 0, 0);
+
+  const link = document.createElement('a');
+  const now = new Date();
+  const ts = now.toISOString().replace(/[-:T]/g, '').slice(0, 15);
+  const typeName = state.fractalType === 'burningShip' ? 'burning-ship' : 'julia-set';
+  link.download = `${typeName}-${state.cReal}_${state.cImag}i-${ts}.png`;
+  link.href = offCanvas.toDataURL('image/png');
+  link.click();
+}
+
+document.getElementById('btnSaveImage').addEventListener('click', () => saveImage(1));
+document.getElementById('btnSavePng1x').addEventListener('click', () => saveImage(1));
+document.getElementById('btnSavePng2x').addEventListener('click', () => saveImage(2));
+document.getElementById('btnSavePng4x').addEventListener('click', () => saveImage(4));
+
+document.getElementById('btnSaveState').addEventListener('click', () => {
+  const data = {
+    mode: state.mode,
+    fractalType: state.fractalType,
+    cReal: state.cReal, cImag: state.cImag,
+    view: getCurrentView(),
+    maxIter: state.maxIter,
+    colorScheme: state.colorScheme,
+    interiorColor: state.interiorColor,
+    invertColors: state.invertColors,
+    banding: state.banding,
+    customGradient: customStops
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const link = document.createElement('a');
+  const now = new Date();
+  const ts = now.toISOString().replace(/[-:T]/g, '').slice(0, 15);
+  link.download = `julia-state-${ts}.json`;
+  link.href = URL.createObjectURL(blob);
+  link.click();
+});
+
+document.getElementById('btnLoadState').addEventListener('click', () => {
+  document.getElementById('stateFileInput').click();
+});
+
+document.getElementById('stateFileInput').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (data.cReal !== undefined) state.cReal = data.cReal;
+      if (data.cImag !== undefined) state.cImag = data.cImag;
+      if (data.fractalType) {
+        state.fractalType = data.fractalType;
+        document.querySelectorAll('.fractal-type-toggle button').forEach(b => {
+          b.classList.toggle('active', b.dataset.fractal === state.fractalType);
+        });
+      }
+      if (data.maxIter) { state.maxIter = data.maxIter; document.getElementById('iterSlider').value = data.maxIter; document.getElementById('iterDisplay').textContent = data.maxIter; }
+      if (data.colorScheme) { state.colorScheme = data.colorScheme; buildColorGrid(); }
+      if (data.interiorColor) { state.interiorColor = data.interiorColor; document.getElementById('interiorColor').value = data.interiorColor; }
+      if (data.invertColors !== undefined) { state.invertColors = data.invertColors; document.getElementById('invertColors').checked = data.invertColors; }
+      if (data.banding) { state.banding = data.banding; document.getElementById('bandingSlider').value = data.banding; document.getElementById('bandingDisplay').textContent = data.banding; }
+      if (data.customGradient) {
+        customStops = data.customGradient;
+        COLOR_SCHEMES.custom = customStops.map(s => ({ s: s.pos, c: s.color }));
+        renderGradientStops();
+        updateStopControls();
+      }
+      if (data.view) {
+        if (data.mode === 'mandelbrot' || data.mode === 'split') Object.assign(state.mandelbrotView, data.view);
+        else Object.assign(state.view, data.view);
+      }
+      updateParamUI();
+      if (data.mode) setMode(data.mode);
+      else render();
+    } catch(err) {
+      alert('Invalid state file');
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+// ===== COLLAPSIBLE SECTIONS =====
+function toggleSection(id) {
+  document.getElementById(id).classList.toggle('collapsed');
+}
+
+// ===== KEYBOARD =====
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  const view = getCurrentView();
+  switch(e.key) {
+    case '+': case '=': view.width /= 1.5; view.height /= 1.5; updateZoomDisplay(); render(); break;
+    case '-': view.width *= 1.5; view.height *= 1.5; updateZoomDisplay(); render(); break;
+    case 'ArrowUp': view.centerImag -= view.height * 0.1; render(); break;
+    case 'ArrowDown': view.centerImag += view.height * 0.1; render(); break;
+    case 'ArrowLeft': view.centerReal -= view.width * 0.1; render(); break;
+    case 'ArrowRight': view.centerReal += view.width * 0.1; render(); break;
+    case ' ': e.preventDefault(); if (state.animating) stopAnimation(); else startAnimation(); break;
+    case 'r': resetView(); break;
+  }
+});
+
+// ===== INIT =====
+function init() {
+  loadFavoritesFromStorage();
+  buildPresets();
+  buildFavorites();
+  buildColorGrid();
+  renderGradientStops();
+  updateStopControls();
+
+  // Start with Spiral preset
+  state.cReal = -0.4;
+  state.cImag = 0.6;
+  updateParamUI();
+
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+}
+
+init();
+</script>
+</body>
+</html>
