@@ -1,0 +1,1386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Decision Neuron — Should I Go to the Gym?</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #f0f4f8;
+  --bg-panel: #e8eef5;
+  --bg-card: #ffffff;
+  --yes: #7ecba1;
+  --yes-strong: #4ab87a;
+  --no: #e8879a;
+  --no-strong: #d6586f;
+  --accent: #7baaf7;
+  --accent-dark: #5b8ee6;
+  --pink: #e8a0bf;
+  --pink-strong: #d978a8;
+  --green: #8fd4b0;
+  --blue: #a0c4f7;
+  --line: #7baaf7;
+  --text: #ffffff;
+  --text-dark: #2d3748;
+  --text-dim: #6b7fa3;
+  --border: #c8d6e5;
+  --card-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+body {
+  font-family: 'IBM Plex Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text-dark);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+h1, h2, h3, h4, label.heading {
+  font-family: 'Space Mono', monospace;
+}
+
+/* Header */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 18px 28px;
+  background: linear-gradient(135deg, #7baaf7 0%, #b8a9e8 50%, #e8a0bf 100%);
+  border-bottom: 1px solid var(--border);
+  color: #ffffff;
+}
+.header h1 {
+  font-size: 1.3rem;
+  color: #ffffff;
+  letter-spacing: 0.5px;
+}
+.header .subtitle {
+  font-size: 0.85rem;
+  color: rgba(255,255,255,0.85);
+}
+
+/* Layout */
+.main {
+  display: flex;
+  gap: 0;
+  min-height: calc(100vh - 70px);
+}
+.plot-area {
+  flex: 0 0 60%;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  overflow-y: auto;
+}
+.panel-area {
+  flex: 0 0 40%;
+  padding: 20px;
+  overflow-y: auto;
+  border-left: 1px solid var(--border);
+  background: var(--bg-panel);
+}
+
+/* Canvas */
+.canvas-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 560px;
+  aspect-ratio: 1;
+}
+canvas {
+  border-radius: 10px;
+  display: block;
+}
+#plotCanvas {
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+  box-shadow: var(--card-shadow);
+}
+
+/* Sections */
+.section {
+  margin-bottom: 16px;
+  padding: 14px;
+  background: var(--bg-card);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  box-shadow: var(--card-shadow);
+}
+.section h3 {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--accent-dark);
+  margin-bottom: 10px;
+}
+
+/* Neuron SVG */
+.neuron-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+#neuronSvg { width: 200px; height: 140px; }
+
+/* Weights display */
+.weight-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 0.85rem;
+}
+.weight-label { color: var(--text-dim); font-family: 'Space Mono', monospace; font-size: 0.78rem; }
+.weight-value {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.85rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  transition: background 0.3s, color 0.3s;
+  min-width: 70px;
+  text-align: right;
+  color: var(--text-dark);
+}
+.weight-value.flash-up { background: rgba(126,203,161,0.35); color: var(--yes-strong); }
+.weight-value.flash-down { background: rgba(232,135,154,0.35); color: var(--no-strong); }
+
+/* Stats */
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 3px 0;
+  font-size: 0.88rem;
+}
+.stat-val {
+  font-family: 'Space Mono', monospace;
+  font-weight: 600;
+}
+
+/* Buttons */
+.btn-group {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.btn {
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  color: var(--text-dark);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn:hover { border-color: var(--accent); color: var(--accent-dark); background: #f0f5ff; }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn.active { background: var(--accent); color: #ffffff; border-color: var(--accent); }
+.btn.yes-btn.active { background: var(--yes); color: #ffffff; border-color: var(--yes); }
+.btn.no-btn.active { background: var(--no); color: #ffffff; border-color: var(--no); }
+.btn.primary { background: var(--accent); color: #ffffff; border-color: var(--accent); }
+.btn.primary:hover { background: var(--accent-dark); }
+.btn.danger { border-color: var(--no); color: var(--no-strong); }
+.btn.danger:hover { background: var(--no); color: #ffffff; }
+
+/* Sliders */
+.slider-group { margin-bottom: 12px; }
+.slider-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.82rem;
+  margin-bottom: 4px;
+}
+.slider-header .val { font-family: 'Space Mono', monospace; color: var(--accent-dark); }
+input[type="range"] {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border);
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+input[type="range"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+
+/* Preset dropdown */
+select {
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 0.82rem;
+  padding: 8px 12px;
+  background: var(--bg-card);
+  color: var(--text-dark);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  width: 100%;
+  cursor: pointer;
+}
+select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-dark);
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  opacity: 0;
+  transition: all 0.3s;
+  z-index: 100;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+.toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+/* Undo bar */
+.undo-bar {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-card);
+  border: 1px solid var(--no);
+  color: var(--text-dark);
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  z-index: 101;
+  display: none;
+  gap: 12px;
+  align-items: center;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+.undo-bar .undo-btn {
+  background: var(--no);
+  color: #ffffff;
+  border: none;
+  padding: 4px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.82rem;
+}
+
+/* Activation function selector */
+.af-btns {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.af-btns .btn { font-size: 0.75rem; padding: 5px 10px; }
+.af-btns .btn.active { background: var(--pink); border-color: var(--pink); color: #fff; }
+
+.math-display {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  background: var(--bg);
+  padding: 8px 10px;
+  border-radius: 6px;
+  margin-top: 6px;
+  text-align: center;
+}
+
+/* Sub-canvas for sensitivity and activation */
+.sub-canvas-wrap {
+  width: 100%;
+  margin-top: 8px;
+}
+.sub-canvas-wrap canvas {
+  width: 100%;
+  height: 140px;
+  box-shadow: none;
+  border: 1px solid var(--border);
+  background: #fff;
+}
+
+/* Responsive */
+@media (max-width: 767px) {
+  .main { flex-direction: column; min-height: auto; }
+  .plot-area { flex: none; padding: 12px; order: 2; }
+  .panel-area { flex: none; border-left: none; border-top: 1px solid var(--border); padding: 12px; order: 1; }
+  .header { padding: 12px 16px; }
+  .header h1 { font-size: 1rem; }
+  .canvas-wrap { max-width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div>
+    <h1>Decision Neuron</h1>
+    <div class="subtitle">Should I go to the gym today? — Interactive Perceptron Visualization</div>
+  </div>
+</header>
+
+<div class="main">
+  <div class="plot-area">
+    <div class="canvas-wrap">
+      <canvas id="plotCanvas" width="560" height="560"></canvas>
+    </div>
+
+    <!-- Sensitivity Analysis -->
+    <div class="section" style="width:100%;max-width:560px;">
+      <h3>Sensitivity Analysis</h3>
+      <div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:8px;">Each curve sweeps one input 0–10 while holding others at current values. Vertical markers show current slider positions.</div>
+      <div class="sub-canvas-wrap">
+        <canvas id="sensitivityCanvas" width="560" height="160"></canvas>
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:6px;font-size:0.72rem;">
+        <span><span style="color:#5b8ee6;">&#9644;</span> Energy</span>
+        <span><span style="color:#4ab87a;">&#9644;</span> Free Time</span>
+        <span><span style="color:#d978a8;">&#9644;</span> Soreness</span>
+        <span><span style="color:#e8a855;">&#9644;</span> Motivation</span>
+      </div>
+    </div>
+
+    <!-- Activation Function Showdown -->
+    <div class="section" style="width:100%;max-width:560px;">
+      <h3>Activation Function Showdown</h3>
+      <div class="af-btns">
+        <button class="btn active" data-af="sigmoid" aria-label="Sigmoid activation">Sigmoid</button>
+        <button class="btn" data-af="step" aria-label="Step activation">Step (1958)</button>
+        <button class="btn" data-af="relu" aria-label="ReLU activation">ReLU</button>
+        <button class="btn" data-af="compare" aria-label="Compare all activations">Compare All</button>
+      </div>
+      <div class="math-display" id="afMath">σ(z) = 1 / (1 + e<sup>-z</sup>)</div>
+      <div class="sub-canvas-wrap">
+        <canvas id="afCanvas" width="560" height="160"></canvas>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:0.78rem;">
+        <span>z = <span id="afZVal" style="font-family:'Space Mono',monospace;color:var(--accent-dark);">0.000</span></span>
+        <span>output = <span id="afOutVal" style="font-family:'Space Mono',monospace;color:var(--accent-dark);">0.500</span></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel-area">
+    <!-- Neuron Icon -->
+    <div class="section">
+      <h3>Neuron</h3>
+      <div class="neuron-container">
+        <svg id="neuronSvg" viewBox="0 0 200 140" xmlns="http://www.w3.org/2000/svg">
+          <line class="dendrite" id="d1" x1="10" y1="30" x2="80" y2="70" stroke="#a0b4cc" stroke-width="2"/>
+          <line class="dendrite" id="d2" x1="10" y1="60" x2="80" y2="70" stroke="#a0b4cc" stroke-width="2"/>
+          <line class="dendrite" id="d3" x1="10" y1="90" x2="80" y2="70" stroke="#a0b4cc" stroke-width="2"/>
+          <line class="dendrite" id="d4" x1="10" y1="120" x2="80" y2="70" stroke="#a0b4cc" stroke-width="2"/>
+          <text x="2" y="28" font-size="8" fill="#6b7fa3" font-family="Space Mono">E</text>
+          <text x="2" y="58" font-size="8" fill="#6b7fa3" font-family="Space Mono">T</text>
+          <text x="2" y="88" font-size="8" fill="#6b7fa3" font-family="Space Mono">S</text>
+          <text x="2" y="118" font-size="8" fill="#6b7fa3" font-family="Space Mono">M</text>
+          <circle id="neuronBody" cx="100" cy="70" r="22" fill="#ffffff" stroke="#7baaf7" stroke-width="2.5"/>
+          <text id="neuronFnLabel" x="100" y="74" text-anchor="middle" font-size="10" fill="#5b8ee6" font-family="Space Mono">σ</text>
+          <circle id="neuronGlow" cx="100" cy="70" r="26" fill="none" stroke="rgba(123,170,247,0.3)" stroke-width="1" opacity="0.5"/>
+          <line x1="122" y1="70" x2="180" y2="70" stroke="#a0b4cc" stroke-width="2"/>
+          <text id="neuronOutput" x="185" y="74" font-size="9" fill="#5b8ee6" font-family="Space Mono">?</text>
+        </svg>
+      </div>
+      <div style="text-align:center;font-size:0.82rem;">
+        Probability: <span id="probDisplay" class="stat-val" style="color:var(--accent-dark)">—</span>
+      </div>
+    </div>
+
+    <!-- Weights -->
+    <div class="section">
+      <h3>Weights &amp; Bias</h3>
+      <div class="weight-row"><span class="weight-label">w₁ Energy</span><span class="weight-value" id="w1">+0.000</span></div>
+      <div class="weight-row"><span class="weight-label">w₂ Free Time</span><span class="weight-value" id="w2">+0.000</span></div>
+      <div class="weight-row"><span class="weight-label">w₃ Soreness</span><span class="weight-value" id="w3">+0.000</span></div>
+      <div class="weight-row"><span class="weight-label">w₄ Motivation</span><span class="weight-value" id="w4">+0.000</span></div>
+      <div class="weight-row"><span class="weight-label">Bias</span><span class="weight-value" id="wBias">+0.000</span></div>
+    </div>
+
+    <!-- Stats -->
+    <div class="section">
+      <h3>Training Stats</h3>
+      <div class="stat-row"><span>Step</span><span class="stat-val" id="stepCount">0</span></div>
+      <div class="stat-row"><span>Accuracy</span><span class="stat-val" id="accuracy">0 / 0 (—%)</span></div>
+    </div>
+
+    <!-- Label Toggle -->
+    <div class="section">
+      <h3>Label Mode</h3>
+      <div class="btn-group">
+        <button class="btn yes-btn active" id="labelYes" aria-label="Set label to Yes">&#10003; YES</button>
+        <button class="btn no-btn" id="labelNo" aria-label="Set label to No">&#10007; NO</button>
+      </div>
+      <div style="font-size:0.75rem;color:var(--text-dim);margin-top:4px;">Click plot to add points. Hold Shift for opposite label.</div>
+    </div>
+
+    <!-- Controls -->
+    <div class="section">
+      <h3>Controls</h3>
+      <div class="btn-group">
+        <button class="btn primary" id="stepBtn" aria-label="Step one training iteration">Step &#9654;</button>
+        <button class="btn" id="trainBtn" aria-label="Auto train">Auto Train &#9654;&#9654;</button>
+        <button class="btn danger" id="resetBtn" aria-label="Reset all">Reset &#8634;</button>
+      </div>
+    </div>
+
+    <!-- Speed -->
+    <div class="section">
+      <h3>Training Speed</h3>
+      <div class="slider-group">
+        <div class="slider-header"><span>Speed</span><span class="val" id="speedVal">5 steps/sec</span></div>
+        <input type="range" id="speedSlider" min="0" max="100" value="40" aria-label="Training speed">
+      </div>
+    </div>
+
+    <!-- Input Sliders -->
+    <div class="section">
+      <h3>Fixed Inputs</h3>
+      <div class="slider-group">
+        <div class="slider-header"><span>Soreness (x₃)</span><span class="val" id="sorenessVal">5.0</span></div>
+        <input type="range" id="sorenessSlider" min="0" max="10" step="0.1" value="5" aria-label="Soreness level">
+      </div>
+      <div class="slider-group">
+        <div class="slider-header"><span>Motivation (x₄)</span><span class="val" id="motivationVal">5.0</span></div>
+        <input type="range" id="motivationSlider" min="0" max="10" step="0.1" value="5" aria-label="Motivation level">
+      </div>
+    </div>
+
+    <!-- Presets -->
+    <div class="section">
+      <h3>Preset Datasets</h3>
+      <select id="presetSelect" aria-label="Load preset dataset">
+        <option value="">— Load a Preset —</option>
+        <option value="classic">Classic Split</option>
+        <option value="noisy">Noisy Gym</option>
+        <option value="energy">Energy Only</option>
+        <option value="xor">XOR Challenge</option>
+      </select>
+    </div>
+
+    <!-- Learning Rate -->
+    <div class="section">
+      <h3>Learning Rate</h3>
+      <div class="slider-group">
+        <div class="slider-header"><span>η</span><span class="val" id="lrVal">0.10</span></div>
+        <input type="range" id="lrSlider" min="1" max="50" value="10" aria-label="Learning rate">
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="undo-bar" id="undoBar">
+  <span>Reset all data?</span>
+  <button class="undo-btn" id="undoBtn">Undo</button>
+</div>
+
+<script>
+(() => {
+  // ── State ──
+  const state = {
+    weights: [0, 0, 0, 0],
+    bias: 0,
+    points: [],
+    step: 0,
+    labelMode: 1,
+    training: false,
+    trainInterval: null,
+    lr: 0.1,
+    speed: 5,
+    soreness: 5,
+    motivation: 5,
+    energy: 5,
+    freeTime: 5,
+    prevWeights: [0, 0, 0, 0],
+    prevBias: 0,
+    displayWeights: [0, 0, 0, 0],
+    displayBias: 0,
+    activationFn: 'sigmoid', // 'sigmoid' | 'step' | 'relu' | 'compare'
+  };
+
+  // ── Activation functions ──
+  const activations = {
+    sigmoid: z => 1 / (1 + Math.exp(-z)),
+    step: z => z >= 0 ? 1 : 0,
+    relu: z => Math.max(0, z),
+  };
+  function currentActivation(z) {
+    if (state.activationFn === 'compare') return activations.sigmoid(z);
+    return activations[state.activationFn](z);
+  }
+
+  // ── DOM refs ──
+  const canvas = document.getElementById('plotCanvas');
+  const ctx = canvas.getContext('2d');
+  const sensCanvas = document.getElementById('sensitivityCanvas');
+  const sensCtx = sensCanvas.getContext('2d');
+  const afCanvas = document.getElementById('afCanvas');
+  const afCtx = afCanvas.getContext('2d');
+  const wEls = ['w1','w2','w3','w4'].map(id => document.getElementById(id));
+  const biasEl = document.getElementById('wBias');
+  const stepEl = document.getElementById('stepCount');
+  const accEl = document.getElementById('accuracy');
+  const probEl = document.getElementById('probDisplay');
+  const neuronBody = document.getElementById('neuronBody');
+  const neuronGlow = document.getElementById('neuronGlow');
+  const neuronOutput = document.getElementById('neuronOutput');
+  const neuronFnLabel = document.getElementById('neuronFnLabel');
+  const dendrites = [1,2,3,4].map(i => document.getElementById('d'+i));
+  const speedSlider = document.getElementById('speedSlider');
+  const speedVal = document.getElementById('speedVal');
+  const sorenessSlider = document.getElementById('sorenessSlider');
+  const motivationSlider = document.getElementById('motivationSlider');
+  const lrSlider = document.getElementById('lrSlider');
+  const trainBtn = document.getElementById('trainBtn');
+  const presetSelect = document.getElementById('presetSelect');
+  const toastEl = document.getElementById('toast');
+  const undoBar = document.getElementById('undoBar');
+  const afMath = document.getElementById('afMath');
+  const afZVal = document.getElementById('afZVal');
+  const afOutVal = document.getElementById('afOutVal');
+
+  // ── Helpers ──
+  const sigmoid = z => 1 / (1 + Math.exp(-z));
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const fmtW = v => (v >= 0 ? '+' : '') + v.toFixed(3);
+
+  function showToast(msg, dur = 2000) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    setTimeout(() => toastEl.classList.remove('show'), dur);
+  }
+
+  // ── Pixel / coordinate mapping (main plot) ──
+  const PLOT_PAD = 50;
+  function plotSize() { return canvas.width - 2 * PLOT_PAD; }
+  function toPixel(vx, vy) {
+    const s = plotSize();
+    return [PLOT_PAD + (vx / 10) * s, PLOT_PAD + (1 - vy / 10) * s];
+  }
+  function toCoord(px, py) {
+    const s = plotSize();
+    return [clamp(((px - PLOT_PAD) / s) * 10, 0, 10), clamp((1 - (py - PLOT_PAD) / s) * 10, 0, 10)];
+  }
+
+  // ── Compute ──
+  function computeZ(x1, x2) {
+    return state.displayWeights[0]*x1 + state.displayWeights[1]*x2
+         + state.displayWeights[2]*state.soreness + state.displayWeights[3]*state.motivation
+         + state.displayBias;
+  }
+  function computeZExact(x1, x2) {
+    return state.weights[0]*x1 + state.weights[1]*x2
+         + state.weights[2]*state.soreness + state.weights[3]*state.motivation
+         + state.bias;
+  }
+  function computeZFull(e, ft, s, m) {
+    return state.weights[0]*e + state.weights[1]*ft + state.weights[2]*s + state.weights[3]*m + state.bias;
+  }
+
+  // ── Particles ──
+  let particles = [];
+  function resetParticles() {
+    particles = [];
+    for (let i = 0; i < 30; i++) {
+      particles.push({ t: Math.random(), speed: 0.001 + Math.random() * 0.003, size: 1.5 + Math.random() * 2 });
+    }
+  }
+  resetParticles();
+
+  // ── Colors for pastel theme ──
+  const COL = {
+    plotBg: '#f7f9fc',
+    grid: 'rgba(160,180,210,0.3)',
+    axisText: '#6b7fa3',
+    yesRegion: [126, 203, 161],   // pastel green
+    noRegion: [232, 135, 154],    // pastel pink
+    yesPoint: '#4ab87a',
+    yesFill: 'rgba(126,203,161,0.7)',
+    noPoint: '#d6586f',
+    noFill: 'rgba(232,135,154,0.7)',
+    lineGlow: 'rgba(123,170,247,0.4)',
+    lineCore: '#5b8ee6',
+    particle: 'rgba(123,170,247,0.5)',
+    border: '#c8d6e5',
+  };
+
+  // ── Main Plot Render ──
+  function renderPlot() {
+    const S = canvas.width;
+    ctx.clearRect(0, 0, S, S);
+    ctx.fillStyle = COL.plotBg;
+    ctx.fillRect(0, 0, S, S);
+
+    const ps = plotSize();
+    const res = 4;
+
+    // Heatmap
+    for (let px = 0; px < ps; px += res) {
+      for (let py = 0; py < ps; py += res) {
+        const [cx, cy] = toCoord(PLOT_PAD + px, PLOT_PAD + py);
+        const z = computeZ(cx, cy);
+        const p = sigmoid(z); // always use sigmoid for boundary display
+        if (p > 0.5) {
+          const alpha = clamp((p - 0.5) * 0.45, 0, 0.22);
+          ctx.fillStyle = `rgba(${COL.yesRegion.join(',')},${alpha})`;
+        } else {
+          const alpha = clamp((0.5 - p) * 0.45, 0, 0.22);
+          ctx.fillStyle = `rgba(${COL.noRegion.join(',')},${alpha})`;
+        }
+        ctx.fillRect(PLOT_PAD + px, PLOT_PAD + py, res, res);
+      }
+    }
+
+    // Grid
+    ctx.strokeStyle = COL.grid;
+    ctx.lineWidth = 0.5;
+    for (let i = 0; i <= 10; i++) {
+      const [gx] = toPixel(i, 0);
+      const [, gy2] = toPixel(0, i);
+      ctx.beginPath(); ctx.moveTo(gx, PLOT_PAD); ctx.lineTo(gx, PLOT_PAD + ps); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(PLOT_PAD, gy2); ctx.lineTo(PLOT_PAD + ps, gy2); ctx.stroke();
+    }
+
+    // Axis labels
+    ctx.fillStyle = COL.axisText;
+    ctx.font = '11px "Space Mono", monospace';
+    ctx.textAlign = 'center';
+    for (let i = 0; i <= 10; i += 2) {
+      const [lx] = toPixel(i, 0);
+      ctx.fillText(i, lx, PLOT_PAD + ps + 18);
+      const [, ly] = toPixel(0, i);
+      ctx.fillText(i, PLOT_PAD - 20, ly + 4);
+    }
+    ctx.font = '12px "IBM Plex Sans", sans-serif';
+    ctx.fillText('Energy Level', PLOT_PAD + ps / 2, PLOT_PAD + ps + 38);
+    ctx.save();
+    ctx.translate(14, PLOT_PAD + ps / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText('Free Time', 0, 0);
+    ctx.restore();
+
+    // Decision boundary line
+    const w1d = state.displayWeights[0];
+    const w2d = state.displayWeights[1];
+    const offset = state.displayWeights[2]*state.soreness + state.displayWeights[3]*state.motivation + state.displayBias;
+    if (Math.abs(w2d) > 1e-8 || Math.abs(w1d) > 1e-8) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(PLOT_PAD, PLOT_PAD, ps, ps);
+      ctx.clip();
+
+      let pts = [];
+      if (Math.abs(w2d) > 1e-8) {
+        for (let xi = -1; xi <= 11; xi += 0.5) {
+          const yi = -(w1d * xi + offset) / w2d;
+          pts.push(toPixel(xi, yi));
+        }
+      } else {
+        const xi = -offset / w1d;
+        pts.push(toPixel(xi, -1));
+        pts.push(toPixel(xi, 11));
+      }
+
+      // Glow
+      ctx.strokeStyle = state.training ? 'rgba(123,170,247,0.6)' : COL.lineGlow;
+      ctx.lineWidth = state.training ? 8 : 5;
+      ctx.shadowColor = '#7baaf7';
+      ctx.shadowBlur = state.training ? 18 : 8;
+      ctx.beginPath();
+      pts.forEach((p, i) => i === 0 ? ctx.moveTo(p[0], p[1]) : ctx.lineTo(p[0], p[1]));
+      ctx.stroke();
+
+      // Core
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = COL.lineCore;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      pts.forEach((p, i) => i === 0 ? ctx.moveTo(p[0], p[1]) : ctx.lineTo(p[0], p[1]));
+      ctx.stroke();
+
+      // Particles
+      if (pts.length >= 2) {
+        particles.forEach(part => {
+          part.t += part.speed * (state.training ? 2 : 1);
+          if (part.t > 1) part.t -= 1;
+          const visiblePts = pts.filter(p => p[0] >= PLOT_PAD && p[0] <= PLOT_PAD+ps && p[1] >= PLOT_PAD && p[1] <= PLOT_PAD+ps);
+          if (visiblePts.length >= 2) {
+            const idx = Math.floor(part.t * (visiblePts.length - 1));
+            const next = Math.min(idx + 1, visiblePts.length - 1);
+            const frac = (part.t * (visiblePts.length - 1)) - idx;
+            const ppx = visiblePts[idx][0] + (visiblePts[next][0] - visiblePts[idx][0]) * frac;
+            const ppy = visiblePts[idx][1] + (visiblePts[next][1] - visiblePts[idx][1]) * frac;
+            ctx.beginPath();
+            ctx.arc(ppx, ppy, part.size, 0, Math.PI * 2);
+            ctx.fillStyle = COL.particle;
+            ctx.fill();
+          }
+        });
+      }
+      ctx.restore();
+    }
+
+    // Data points
+    state.points.forEach(pt => {
+      const [px, py] = toPixel(pt.x, pt.y);
+      if (pt.label === 1) {
+        ctx.beginPath();
+        ctx.arc(px, py, 7, 0, Math.PI * 2);
+        ctx.fillStyle = COL.yesFill;
+        ctx.fill();
+        ctx.strokeStyle = COL.yesPoint;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      } else {
+        ctx.save();
+        ctx.translate(px, py);
+        ctx.rotate(Math.PI / 4);
+        ctx.fillStyle = COL.noFill;
+        ctx.fillRect(-5.5, -5.5, 11, 11);
+        ctx.strokeStyle = COL.noPoint;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(-5.5, -5.5, 11, 11);
+        ctx.restore();
+      }
+    });
+
+    // Border
+    ctx.strokeStyle = COL.border;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(PLOT_PAD, PLOT_PAD, ps, ps);
+  }
+
+  // ── Sensitivity Analysis Render ──
+  function renderSensitivity() {
+    const W = sensCanvas.width;
+    const H = sensCanvas.height;
+    sensCtx.clearRect(0, 0, W, H);
+    sensCtx.fillStyle = '#ffffff';
+    sensCtx.fillRect(0, 0, W, H);
+
+    const pad = { l: 40, r: 16, t: 12, b: 24 };
+    const pw = W - pad.l - pad.r;
+    const ph = H - pad.t - pad.b;
+
+    // Grid
+    sensCtx.strokeStyle = 'rgba(160,180,210,0.25)';
+    sensCtx.lineWidth = 0.5;
+    for (let i = 0; i <= 5; i++) {
+      const y = pad.t + (i / 5) * ph;
+      sensCtx.beginPath(); sensCtx.moveTo(pad.l, y); sensCtx.lineTo(pad.l + pw, y); sensCtx.stroke();
+    }
+
+    // Y-axis labels
+    sensCtx.fillStyle = '#6b7fa3';
+    sensCtx.font = '9px "Space Mono", monospace';
+    sensCtx.textAlign = 'right';
+    sensCtx.fillText('1.0', pad.l - 4, pad.t + 4);
+    sensCtx.fillText('0.5', pad.l - 4, pad.t + ph / 2 + 3);
+    sensCtx.fillText('0.0', pad.l - 4, pad.t + ph + 3);
+
+    // X-axis labels
+    sensCtx.textAlign = 'center';
+    sensCtx.fillText('0', pad.l, pad.t + ph + 14);
+    sensCtx.fillText('5', pad.l + pw / 2, pad.t + ph + 14);
+    sensCtx.fillText('10', pad.l + pw, pad.t + ph + 14);
+
+    const inputColors = ['#5b8ee6', '#4ab87a', '#d978a8', '#e8a855'];
+    const inputNames = ['Energy', 'Free Time', 'Soreness', 'Motivation'];
+    const currentValues = [state.energy, state.freeTime, state.soreness, state.motivation];
+    const defaults = [state.energy, state.freeTime, state.soreness, state.motivation];
+
+    // Use sigmoid for sensitivity display to keep output 0-1
+    for (let inputIdx = 0; inputIdx < 4; inputIdx++) {
+      sensCtx.beginPath();
+      sensCtx.strokeStyle = inputColors[inputIdx];
+      sensCtx.lineWidth = 2;
+      for (let step = 0; step <= pw; step++) {
+        const val = (step / pw) * 10;
+        const inputs = [...defaults];
+        inputs[inputIdx] = val;
+        const z = computeZFull(inputs[0], inputs[1], inputs[2], inputs[3]);
+        const out = sigmoid(z);
+        const x = pad.l + step;
+        const y = pad.t + (1 - out) * ph;
+        if (step === 0) sensCtx.moveTo(x, y);
+        else sensCtx.lineTo(x, y);
+      }
+      sensCtx.stroke();
+
+      // Vertical marker for current value
+      const markerX = pad.l + (currentValues[inputIdx] / 10) * pw;
+      const markerInputs = [...defaults];
+      const mz = computeZFull(markerInputs[0], markerInputs[1], markerInputs[2], markerInputs[3]);
+      // Compute at swept value
+      const sweptInputs = [...defaults];
+      sweptInputs[inputIdx] = currentValues[inputIdx];
+      const sz = computeZFull(sweptInputs[0], sweptInputs[1], sweptInputs[2], sweptInputs[3]);
+      const markerY = pad.t + (1 - sigmoid(sz)) * ph;
+
+      sensCtx.save();
+      sensCtx.setLineDash([3, 3]);
+      sensCtx.strokeStyle = inputColors[inputIdx];
+      sensCtx.lineWidth = 1;
+      sensCtx.globalAlpha = 0.5;
+      sensCtx.beginPath();
+      sensCtx.moveTo(markerX, pad.t);
+      sensCtx.lineTo(markerX, pad.t + ph);
+      sensCtx.stroke();
+      sensCtx.restore();
+
+      // Marker dot
+      sensCtx.beginPath();
+      sensCtx.arc(markerX, markerY, 4, 0, Math.PI * 2);
+      sensCtx.fillStyle = inputColors[inputIdx];
+      sensCtx.fill();
+      sensCtx.strokeStyle = '#fff';
+      sensCtx.lineWidth = 1.5;
+      sensCtx.stroke();
+    }
+
+    // Border
+    sensCtx.strokeStyle = '#c8d6e5';
+    sensCtx.lineWidth = 1;
+    sensCtx.setLineDash([]);
+    sensCtx.strokeRect(pad.l, pad.t, pw, ph);
+  }
+
+  // ── Activation Function Showdown Render ──
+  function renderActivationFn() {
+    const W = afCanvas.width;
+    const H = afCanvas.height;
+    afCtx.clearRect(0, 0, W, H);
+    afCtx.fillStyle = '#ffffff';
+    afCtx.fillRect(0, 0, W, H);
+
+    const pad = { l: 40, r: 16, t: 12, b: 24 };
+    const pw = W - pad.l - pad.r;
+    const ph = H - pad.t - pad.b;
+
+    // z range: -6 to 6
+    const zMin = -6, zMax = 6;
+    // output range depends on activation
+    let yMin = -0.1, yMax = 1.1;
+    if (state.activationFn === 'relu' || state.activationFn === 'compare') {
+      yMax = 2.5; yMin = -0.3;
+    }
+
+    function zToX(z) { return pad.l + ((z - zMin) / (zMax - zMin)) * pw; }
+    function outToY(o) { return pad.t + (1 - (o - yMin) / (yMax - yMin)) * ph; }
+
+    // Grid
+    afCtx.strokeStyle = 'rgba(160,180,210,0.25)';
+    afCtx.lineWidth = 0.5;
+    // horizontal: at 0 and 1
+    [0, 0.5, 1].forEach(v => {
+      if (v >= yMin && v <= yMax) {
+        const y = outToY(v);
+        afCtx.beginPath(); afCtx.moveTo(pad.l, y); afCtx.lineTo(pad.l + pw, y); afCtx.stroke();
+      }
+    });
+    // vertical: at 0
+    const zeroX = zToX(0);
+    afCtx.beginPath(); afCtx.moveTo(zeroX, pad.t); afCtx.lineTo(zeroX, pad.t + ph); afCtx.stroke();
+
+    // Axis labels
+    afCtx.fillStyle = '#6b7fa3';
+    afCtx.font = '9px "Space Mono", monospace';
+    afCtx.textAlign = 'right';
+    [0, 0.5, 1].forEach(v => {
+      if (v >= yMin && v <= yMax) {
+        afCtx.fillText(v.toFixed(1), pad.l - 4, outToY(v) + 3);
+      }
+    });
+    if (state.activationFn === 'relu' || state.activationFn === 'compare') {
+      afCtx.fillText('2.0', pad.l - 4, outToY(2) + 3);
+    }
+    afCtx.textAlign = 'center';
+    [-4, -2, 0, 2, 4].forEach(z => {
+      afCtx.fillText(z, zToX(z), pad.t + ph + 14);
+    });
+    afCtx.fillText('z', pad.l + pw + 8, pad.t + ph + 14);
+
+    // Curves
+    const curvesToDraw = state.activationFn === 'compare'
+      ? [
+          { fn: activations.sigmoid, color: '#5b8ee6', label: 'Sigmoid', dash: [] },
+          { fn: activations.step, color: '#d978a8', label: 'Step', dash: [5, 4] },
+          { fn: activations.relu, color: '#4ab87a', label: 'ReLU', dash: [2, 3] },
+        ]
+      : [
+          { fn: activations[state.activationFn], color: state.activationFn === 'sigmoid' ? '#5b8ee6' : state.activationFn === 'step' ? '#d978a8' : '#4ab87a', label: '', dash: [] },
+        ];
+
+    curvesToDraw.forEach(curve => {
+      afCtx.beginPath();
+      afCtx.strokeStyle = curve.color;
+      afCtx.lineWidth = 2.5;
+      afCtx.setLineDash(curve.dash);
+      for (let step = 0; step <= pw; step++) {
+        const z = zMin + (step / pw) * (zMax - zMin);
+        let out = curve.fn(z);
+        out = clamp(out, yMin, yMax);
+        const x = pad.l + step;
+        const y = outToY(out);
+        if (step === 0) afCtx.moveTo(x, y);
+        else afCtx.lineTo(x, y);
+      }
+      afCtx.stroke();
+      afCtx.setLineDash([]);
+    });
+
+    // Compare legend
+    if (state.activationFn === 'compare') {
+      let lx = pad.l + 8;
+      curvesToDraw.forEach(curve => {
+        afCtx.setLineDash(curve.dash);
+        afCtx.strokeStyle = curve.color;
+        afCtx.lineWidth = 2;
+        afCtx.beginPath();
+        afCtx.moveTo(lx, pad.t + 10);
+        afCtx.lineTo(lx + 18, pad.t + 10);
+        afCtx.stroke();
+        afCtx.setLineDash([]);
+        afCtx.fillStyle = '#6b7fa3';
+        afCtx.font = '9px "IBM Plex Sans", sans-serif';
+        afCtx.textAlign = 'left';
+        afCtx.fillText(curve.label, lx + 22, pad.t + 13);
+        lx += 72;
+      });
+    }
+
+    // Current z marker
+    const zNow = computeZExact(state.energy, state.freeTime);
+    const zClamped = clamp(zNow, zMin, zMax);
+    const mx = zToX(zClamped);
+
+    // Vertical line at current z
+    afCtx.save();
+    afCtx.setLineDash([3, 3]);
+    afCtx.strokeStyle = 'rgba(100,120,150,0.4)';
+    afCtx.lineWidth = 1;
+    afCtx.beginPath();
+    afCtx.moveTo(mx, pad.t);
+    afCtx.lineTo(mx, pad.t + ph);
+    afCtx.stroke();
+    afCtx.restore();
+
+    // Marker dot on the active curve
+    const activeOut = currentActivation(zClamped);
+    const my = outToY(clamp(activeOut, yMin, yMax));
+    afCtx.beginPath();
+    afCtx.arc(mx, my, 5, 0, Math.PI * 2);
+    afCtx.fillStyle = state.activationFn === 'compare' ? '#5b8ee6' : curvesToDraw[0].color;
+    afCtx.fill();
+    afCtx.strokeStyle = '#fff';
+    afCtx.lineWidth = 2;
+    afCtx.stroke();
+
+    // If compare, also draw markers on other curves
+    if (state.activationFn === 'compare') {
+      curvesToDraw.slice(1).forEach(curve => {
+        const co = clamp(curve.fn(zClamped), yMin, yMax);
+        const cy = outToY(co);
+        afCtx.beginPath();
+        afCtx.arc(mx, cy, 4, 0, Math.PI * 2);
+        afCtx.fillStyle = curve.color;
+        afCtx.fill();
+        afCtx.strokeStyle = '#fff';
+        afCtx.lineWidth = 1.5;
+        afCtx.stroke();
+      });
+    }
+
+    // Border
+    afCtx.strokeStyle = '#c8d6e5';
+    afCtx.lineWidth = 1;
+    afCtx.setLineDash([]);
+    afCtx.strokeRect(pad.l, pad.t, pw, ph);
+
+    // Update z and output displays
+    afZVal.textContent = zNow.toFixed(3);
+    const outNow = currentActivation(zNow);
+    afOutVal.textContent = (state.activationFn === 'relu' ? outNow.toFixed(3) : outNow.toFixed(3));
+  }
+
+  // ── Animation loop ──
+  function render() {
+    renderPlot();
+    renderSensitivity();
+    renderActivationFn();
+    requestAnimationFrame(render);
+  }
+
+  // ── Smooth weight animation ──
+  function lerpWeights() {
+    const speed = 0.15;
+    for (let i = 0; i < 4; i++) {
+      state.displayWeights[i] += (state.weights[i] - state.displayWeights[i]) * speed;
+    }
+    state.displayBias += (state.bias - state.displayBias) * speed;
+  }
+  setInterval(lerpWeights, 16);
+
+  // ── Update UI ──
+  function updateWeightsUI() {
+    const els = [wEls[0], wEls[1], wEls[2], wEls[3], biasEl];
+    const vals = [...state.weights, state.bias];
+    const prev = [...state.prevWeights, state.prevBias];
+    els.forEach((el, i) => {
+      el.textContent = fmtW(vals[i]);
+      el.classList.remove('flash-up', 'flash-down');
+      if (vals[i] > prev[i] + 1e-9) {
+        el.classList.add('flash-up');
+      } else if (vals[i] < prev[i] - 1e-9) {
+        el.classList.add('flash-down');
+      }
+      setTimeout(() => el.classList.remove('flash-up', 'flash-down'), 400);
+    });
+    state.prevWeights = [...state.weights];
+    state.prevBias = state.bias;
+  }
+
+  function updateStats() {
+    stepEl.textContent = state.step;
+    if (state.points.length === 0) {
+      accEl.textContent = '0 / 0 (—%)';
+      return 0;
+    }
+    let correct = 0;
+    state.points.forEach(pt => {
+      const z = computeZExact(pt.x, pt.y);
+      const out = sigmoid(z) >= 0.5 ? 1 : 0;
+      if (out === pt.label) correct++;
+    });
+    const pct = ((correct / state.points.length) * 100).toFixed(0);
+    accEl.textContent = `${correct} / ${state.points.length} (${pct}%)`;
+    return correct / state.points.length;
+  }
+
+  function updateNeuron() {
+    const z = computeZExact(state.energy, state.freeTime);
+    const p = currentActivation(z);
+    const pSigmoid = sigmoid(z); // for probability display
+    probEl.textContent = p.toFixed(3);
+
+    // Update function label
+    const fnLabels = { sigmoid: 'σ', step: 'H', relu: 'R', compare: 'σ' };
+    neuronFnLabel.textContent = fnLabels[state.activationFn] || 'σ';
+
+    let color, glowColor;
+    // Normalize for color: sigmoid/step are 0-1, relu is 0+
+    const pNorm = state.activationFn === 'relu' ? clamp(pSigmoid, 0, 1) : clamp(p, 0, 1);
+    if (pNorm > 0.7) {
+      color = '#4ab87a'; glowColor = 'rgba(126,203,161,0.5)';
+      neuronOutput.textContent = 'Yes';
+      neuronOutput.setAttribute('fill', '#4ab87a');
+    } else if (pNorm < 0.3) {
+      color = '#d6586f'; glowColor = 'rgba(232,135,154,0.5)';
+      neuronOutput.textContent = 'No';
+      neuronOutput.setAttribute('fill', '#d6586f');
+    } else {
+      color = '#e8a855'; glowColor = 'rgba(232,168,85,0.4)';
+      neuronOutput.textContent = '?';
+      neuronOutput.setAttribute('fill', '#e8a855');
+    }
+    neuronBody.setAttribute('stroke', color);
+    neuronGlow.setAttribute('stroke', glowColor);
+    const glowR = 26 + Math.sin(Date.now() / (pNorm > 0.7 ? 200 : pNorm < 0.3 ? 800 : 400)) * 4;
+    neuronGlow.setAttribute('r', glowR);
+
+    dendrites.forEach((d, i) => {
+      const w = Math.abs(state.weights[i]);
+      d.setAttribute('stroke-width', 1 + w * 2);
+      d.setAttribute('stroke', w > 0.5 ? '#7baaf7' : '#a0b4cc');
+    });
+  }
+  setInterval(updateNeuron, 50);
+
+  // ── Training step ──
+  function trainStep() {
+    if (state.points.length === 0) return;
+    state.points.forEach(pt => {
+      const z = computeZExact(pt.x, pt.y);
+      const output = sigmoid(z);
+      const error = pt.label - output;
+      const grad = output * (1 - output);
+      const delta = state.lr * error * grad;
+      state.weights[0] += delta * pt.x;
+      state.weights[1] += delta * pt.y;
+      state.weights[2] += delta * state.soreness;
+      state.weights[3] += delta * state.motivation;
+      state.bias += delta;
+    });
+    state.step++;
+    updateWeightsUI();
+    const acc = updateStats();
+
+    if (state.training && (acc >= 1.0 || state.step >= 1000)) {
+      stopTraining();
+      if (acc >= 1.0) showToast('100% accuracy reached!');
+      else showToast('Reached 1000 steps limit');
+    }
+  }
+
+  // ── Auto train ──
+  function getSpeed() {
+    const v = speedSlider.value / 100;
+    return Math.round(1 + 19 * v);
+  }
+
+  function startTraining() {
+    if (state.points.length === 0) { showToast('Add some points first!'); return; }
+    state.training = true;
+    trainBtn.textContent = 'Pause \u23F8';
+    trainBtn.classList.add('active');
+    const spd = getSpeed();
+    state.trainInterval = setInterval(trainStep, 1000 / spd);
+  }
+
+  function stopTraining() {
+    state.training = false;
+    trainBtn.textContent = 'Auto Train \u25B6\u25B6';
+    trainBtn.classList.remove('active');
+    if (state.trainInterval) { clearInterval(state.trainInterval); state.trainInterval = null; }
+  }
+
+  // ── Reset ──
+  let undoTimeout = null;
+  let savedState = null;
+
+  function doReset() {
+    state.weights = [0, 0, 0, 0];
+    state.bias = 0;
+    state.displayWeights = [0, 0, 0, 0];
+    state.displayBias = 0;
+    state.prevWeights = [0, 0, 0, 0];
+    state.prevBias = 0;
+    state.points = [];
+    state.step = 0;
+    stopTraining();
+    updateWeightsUI();
+    updateStats();
+  }
+
+  document.getElementById('resetBtn').addEventListener('click', () => {
+    savedState = {
+      weights: [...state.weights],
+      bias: state.bias,
+      points: [...state.points],
+      step: state.step,
+    };
+    doReset();
+    undoBar.style.display = 'flex';
+    if (undoTimeout) clearTimeout(undoTimeout);
+    undoTimeout = setTimeout(() => {
+      undoBar.style.display = 'none';
+      savedState = null;
+    }, 3000);
+  });
+
+  document.getElementById('undoBtn').addEventListener('click', () => {
+    if (savedState) {
+      state.weights = savedState.weights;
+      state.bias = savedState.bias;
+      state.points = savedState.points;
+      state.step = savedState.step;
+      state.displayWeights = [...state.weights];
+      state.displayBias = state.bias;
+      state.prevWeights = [...state.weights];
+      state.prevBias = state.bias;
+      updateWeightsUI();
+      updateStats();
+      savedState = null;
+    }
+    undoBar.style.display = 'none';
+    if (undoTimeout) clearTimeout(undoTimeout);
+  });
+
+  // ── Event listeners ──
+  document.getElementById('labelYes').addEventListener('click', () => {
+    state.labelMode = 1;
+    document.getElementById('labelYes').classList.add('active');
+    document.getElementById('labelNo').classList.remove('active');
+  });
+  document.getElementById('labelNo').addEventListener('click', () => {
+    state.labelMode = 0;
+    document.getElementById('labelNo').classList.add('active');
+    document.getElementById('labelYes').classList.remove('active');
+  });
+
+  document.getElementById('stepBtn').addEventListener('click', () => trainStep());
+
+  trainBtn.addEventListener('click', () => {
+    if (state.training) stopTraining();
+    else startTraining();
+  });
+
+  speedSlider.addEventListener('input', () => {
+    state.speed = getSpeed();
+    speedVal.textContent = state.speed + ' steps/sec';
+    if (state.training) {
+      clearInterval(state.trainInterval);
+      state.trainInterval = setInterval(trainStep, 1000 / state.speed);
+    }
+  });
+
+  sorenessSlider.addEventListener('input', () => {
+    state.soreness = parseFloat(sorenessSlider.value);
+    document.getElementById('sorenessVal').textContent = state.soreness.toFixed(1);
+  });
+
+  motivationSlider.addEventListener('input', () => {
+    state.motivation = parseFloat(motivationSlider.value);
+    document.getElementById('motivationVal').textContent = state.motivation.toFixed(1);
+  });
+
+  lrSlider.addEventListener('input', () => {
+    state.lr = parseInt(lrSlider.value) / 100;
+    document.getElementById('lrVal').textContent = state.lr.toFixed(2);
+  });
+
+  // ── Canvas click ──
+  canvas.addEventListener('click', (e) => {
+    if (state.points.length >= 50) { showToast('Maximum 50 points reached!'); return; }
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const mx = (e.clientX - rect.left) * scaleX;
+    const my = (e.clientY - rect.top) * scaleY;
+    const [cx, cy] = toCoord(mx, my);
+    if (cx < 0 || cx > 10 || cy < 0 || cy > 10) return;
+
+    let label = state.labelMode;
+    if (e.shiftKey) label = 1 - label;
+
+    state.points.push({ x: Math.round(cx * 10) / 10, y: Math.round(cy * 10) / 10, label });
+    updateStats();
+
+    if (state.points.length === 45) showToast('Approaching 50-point limit');
+  });
+
+  // ── Activation Function Selector ──
+  const afBtns = document.querySelectorAll('.af-btns .btn');
+  const mathStrings = {
+    sigmoid: 'σ(z) = 1 / (1 + e<sup>−z</sup>)',
+    step: 'H(z) = { 1 if z ≥ 0, 0 if z < 0 }',
+    relu: 'ReLU(z) = max(0, z)',
+    compare: 'All three functions overlaid',
+  };
+
+  afBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      afBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.activationFn = btn.dataset.af;
+      afMath.innerHTML = mathStrings[state.activationFn];
+    });
+  });
+
+  // ── Presets ──
+  const presets = {
+    classic: {
+      desc: 'Classic diagonal split — high energy & time → Yes',
+      points: [
+        {x:8,y:8,label:1},{x:7,y:9,label:1},{x:9,y:7,label:1},{x:6,y:8,label:1},{x:8,y:6,label:1},
+        {x:7,y:7,label:1},{x:9,y:9,label:1},{x:6,y:7,label:1},{x:8,y:5,label:1},{x:5,y:8,label:1},
+        {x:2,y:2,label:0},{x:1,y:3,label:0},{x:3,y:1,label:0},{x:2,y:4,label:0},{x:4,y:2,label:0},
+        {x:1,y:1,label:0},{x:3,y:3,label:0},{x:0,y:2,label:0},{x:2,y:0,label:0},{x:4,y:3,label:0},
+      ]
+    },
+    noisy: {
+      desc: 'Mostly separable with a few outlier points',
+      points: [
+        {x:8,y:8,label:1},{x:7,y:9,label:1},{x:9,y:7,label:1},{x:6,y:8,label:1},{x:8,y:6,label:1},
+        {x:7,y:7,label:1},{x:9,y:9,label:1},{x:6,y:7,label:1},
+        {x:3,y:3,label:1},{x:2,y:7,label:1},
+        {x:2,y:2,label:0},{x:1,y:3,label:0},{x:3,y:1,label:0},{x:2,y:4,label:0},{x:4,y:2,label:0},
+        {x:1,y:1,label:0},{x:3,y:4,label:0},{x:0,y:2,label:0},
+        {x:7,y:4,label:0},{x:8,y:3,label:0},
+      ]
+    },
+    energy: {
+      desc: 'Only Energy Level matters — vertical boundary',
+      points: [
+        {x:7,y:2,label:1},{x:8,y:5,label:1},{x:6,y:8,label:1},{x:9,y:1,label:1},{x:7,y:6,label:1},
+        {x:8,y:9,label:1},{x:6,y:4,label:1},{x:9,y:7,label:1},{x:7,y:0,label:1},{x:8,y:3,label:1},
+        {x:2,y:3,label:0},{x:1,y:7,label:0},{x:3,y:1,label:0},{x:0,y:5,label:0},{x:2,y:9,label:0},
+        {x:3,y:6,label:0},{x:1,y:2,label:0},{x:0,y:8,label:0},{x:2,y:0,label:0},{x:3,y:4,label:0},
+      ]
+    },
+    xor: {
+      desc: 'XOR pattern — shows limits of a single perceptron!',
+      points: [
+        {x:8,y:8,label:0},{x:9,y:9,label:0},{x:7,y:7,label:0},{x:8,y:7,label:0},{x:7,y:9,label:0},
+        {x:2,y:2,label:0},{x:1,y:1,label:0},{x:3,y:3,label:0},{x:1,y:3,label:0},{x:3,y:1,label:0},
+        {x:8,y:2,label:1},{x:9,y:1,label:1},{x:7,y:3,label:1},{x:9,y:3,label:1},{x:7,y:1,label:1},
+        {x:2,y:8,label:1},{x:1,y:9,label:1},{x:3,y:7,label:1},{x:1,y:7,label:1},{x:3,y:9,label:1},
+      ]
+    }
+  };
+
+  presetSelect.addEventListener('change', () => {
+    const key = presetSelect.value;
+    if (!key) return;
+    const preset = presets[key];
+    doReset();
+    state.points = preset.points.map(p => ({...p}));
+    updateStats();
+    showToast(preset.desc, 3000);
+    presetSelect.value = '';
+  });
+
+  // ── Canvas resize ──
+  function resizeCanvas() {
+    const wrap = canvas.parentElement;
+    const size = Math.min(wrap.clientWidth, wrap.clientHeight, 560);
+    canvas.width = size;
+    canvas.height = size;
+    canvas.style.width = size + 'px';
+    canvas.style.height = size + 'px';
+
+    // Sensitivity canvas
+    const sensWrap = sensCanvas.parentElement;
+    const sw = sensWrap.clientWidth;
+    sensCanvas.width = sw;
+    sensCanvas.height = 160;
+    sensCanvas.style.width = sw + 'px';
+    sensCanvas.style.height = '160px';
+
+    // Activation function canvas
+    const afWrap = afCanvas.parentElement;
+    const aw = afWrap.clientWidth;
+    afCanvas.width = aw;
+    afCanvas.height = 160;
+    afCanvas.style.width = aw + 'px';
+    afCanvas.style.height = '160px';
+  }
+
+  window.addEventListener('resize', resizeCanvas);
+  resizeCanvas();
+
+  // ── Init ──
+  updateWeightsUI();
+  updateStats();
+  render();
+})();
+</script>
+</body>
+</html>
