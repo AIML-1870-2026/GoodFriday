@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RGB Waterfall Color Explorer</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #050d1a;
+      --panel: rgba(5, 20, 42, 0.88);
+      --border: rgba(90, 150, 215, 0.14);
+      --text: rgba(210, 225, 248, 0.9);
+      --text-dim: rgba(150, 178, 215, 0.55);
+      --font-d: 'Cinzel', 'Palatino Linotype', serif;
+      --font-m: 'DM Mono', 'Courier New', monospace;
+      --sidebar-w: 338px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-m);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── COLOR BLINDNESS BAR (TOP) ─────────────────── */
+    #cb-bar {
+      flex-shrink: 0;
+      background: rgba(4, 10, 24, 0.97);
+      border-bottom: 1px solid var(--border);
+      z-index: 10;
+    }
+    #cb-toggle {
+      width: 100%;
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      font-family: var(--font-d);
+      font-size: 0.62rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      padding: 0.45rem 1rem;
+      cursor: pointer;
+      text-align: left;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: color 0.2s;
+    }
+    #cb-toggle:hover { color: var(--text); }
+    #cb-toggle .arrow { font-size: 0.55rem; transition: transform 0.25s; }
+    #cb-toggle.open .arrow { transform: rotate(180deg); }
+
+    #cb-content {
+      display: none;
+      padding: 0.5rem 1rem 0.75rem;
+      overflow-x: auto;
+    }
+    #cb-content.open { display: block; }
+
+    .cb-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.35rem;
+    }
+    .cb-row:last-child { margin-bottom: 0; }
+    .cb-type-label {
+      font-size: 0.58rem;
+      letter-spacing: 0.08em;
+      color: var(--text-dim);
+      min-width: 92px;
+      flex-shrink: 0;
+    }
+    .cb-swatches { display: flex; gap: 0.3rem; flex-wrap: nowrap; }
+    .cb-swatch {
+      width: 42px;
+      height: 26px;
+      border-radius: 4px;
+      border: 1px solid rgba(255,255,255,0.07);
+      position: relative;
+    }
+    .cb-swatch-hex {
+      position: absolute;
+      bottom: -14px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.45rem;
+      color: var(--text-dim);
+      white-space: nowrap;
+    }
+
+    /* ── MAIN (sidebar + scene) ─────────────────────── */
+    #main {
+      flex: 1;
+      display: flex;
+      flex-direction: row;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    /* ── SIDEBAR ────────────────────────────────────── */
+    #sidebar {
+      width: var(--sidebar-w);
+      flex-shrink: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      background: rgba(3, 9, 22, 0.6);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(80,130,200,0.25) transparent;
+    }
+    #sidebar::-webkit-scrollbar { width: 4px; }
+    #sidebar::-webkit-scrollbar-thumb { background: rgba(80,130,200,0.25); border-radius: 2px; }
+
+    .panel {
+      padding: 0.9rem 1rem;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .section-title {
+      font-family: var(--font-d);
+      font-size: 0.6rem;
+      letter-spacing: 0.22em;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      margin-bottom: 0.7rem;
+    }
+
+    /* ── RGB PANEL ───────────────────────────────────── */
+    #rgb-panel { display: flex; flex-direction: column; gap: 0.7rem; }
+
+    .sliders-row { display: flex; gap: 1.5rem; align-items: flex-end; justify-content: center; }
+
+    .channel { display: flex; flex-direction: column; align-items: center; gap: 0.35rem; }
+    .ch-label { font-family: var(--font-d); font-size: 0.62rem; letter-spacing: 0.18em; text-transform: uppercase; }
+    .flow-label { font-size: 0.52rem; letter-spacing: 0.1em; color: var(--text-dim); }
+
+    .slider-outer {
+      position: relative;
+      width: 28px; height: 120px;
+      display: flex; justify-content: center; align-items: center;
+    }
+    .slider-track-bg {
+      position: absolute; width: 6px; height: 100%;
+      background: #0b1929; border-radius: 3px;
+      top: 0; left: 50%; transform: translateX(-50%);
+      pointer-events: none;
+    }
+    .slider-fill {
+      position: absolute; width: 6px; bottom: 0;
+      left: 50%; transform: translateX(-50%);
+      border-radius: 3px; pointer-events: none;
+      transition: height 0.04s linear;
+    }
+    .r-fill { background: #ff4444; box-shadow: 0 0 7px rgba(255,60,60,0.55); }
+    .g-fill { background: #44ff44; box-shadow: 0 0 7px rgba(60,255,60,0.55); }
+    .b-fill { background: #4488ff; box-shadow: 0 0 7px rgba(68,136,255,0.55); }
+
+    input[type="range"].vert {
+      position: absolute; width: 120px; height: 28px;
+      transform: rotate(-90deg);
+      -webkit-appearance: none; appearance: none;
+      background: transparent; cursor: pointer;
+      z-index: 2; outline: none;
+    }
+    input[type="range"].vert::-webkit-slider-runnable-track { background: transparent; height: 6px; }
+    input[type="range"].vert::-moz-range-track { background: transparent; height: 6px; }
+    input.r-slider::-webkit-slider-thumb { -webkit-appearance:none; width:20px;height:20px;border-radius:50%;background:#ff4444;box-shadow:0 0 9px #ff4444;cursor:pointer; }
+    input.g-slider::-webkit-slider-thumb { -webkit-appearance:none; width:20px;height:20px;border-radius:50%;background:#44ff44;box-shadow:0 0 9px #44ff44;cursor:pointer; }
+    input.b-slider::-webkit-slider-thumb { -webkit-appearance:none; width:20px;height:20px;border-radius:50%;background:#4488ff;box-shadow:0 0 9px #4488ff;cursor:pointer; }
+    input.r-slider::-moz-range-thumb { width:20px;height:20px;border-radius:50%;background:#ff4444;box-shadow:0 0 9px #ff4444;border:none;cursor:pointer; }
+    input.g-slider::-moz-range-thumb { width:20px;height:20px;border-radius:50%;background:#44ff44;box-shadow:0 0 9px #44ff44;border:none;cursor:pointer; }
+    input.b-slider::-moz-range-thumb { width:20px;height:20px;border-radius:50%;background:#4488ff;box-shadow:0 0 9px #4488ff;border:none;cursor:pointer; }
+
+    .val-display { font-size: 0.68rem; min-width: 3ch; text-align: center; }
+    .r-val { color: #ff7777; } .g-val { color: #66ff66; } .b-val { color: #88aaff; }
+
+    #color-readout { display: flex; flex-direction: column; gap: 0.5rem; }
+    #swatch { width: 100%; height: 44px; border-radius: 6px; border: 1px solid var(--border); transition: background 0.3s ease; }
+    .readout-row { display: flex; gap: 0.75rem; align-items: center; }
+    .code-line { display: flex; align-items: center; gap: 0.4rem; font-size: 0.72rem; flex: 1; }
+    .code-lbl { color: var(--text-dim); font-size: 0.6rem; letter-spacing: 0.1em; flex-shrink: 0; }
+    #copy-hex {
+      background: rgba(80,130,220,0.1); border: 1px solid rgba(80,130,220,0.28);
+      color: rgba(140,180,255,0.88); font-family: var(--font-m);
+      font-size: 0.58rem; letter-spacing: 0.1em; padding: 0.28rem 0.65rem;
+      border-radius: 4px; cursor: pointer; transition: all 0.2s; white-space: nowrap;
+    }
+    #copy-hex:hover { background: rgba(80,130,220,0.2); }
+
+    /* ── PALETTE PANEL ───────────────────────────────── */
+    #palette-panel { display: flex; flex-direction: column; gap: 0.65rem; }
+
+    .pal-controls { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+    .lock-wrap {
+      display: flex; align-items: center; gap: 0.4rem;
+      font-size: 0.6rem; letter-spacing: 0.08em; color: var(--text-dim);
+      cursor: pointer; user-select: none;
+    }
+    input#lock-toggle {
+      appearance: none; width: 28px; height: 14px;
+      background: #0b1929; border: 1px solid var(--border);
+      border-radius: 7px; position: relative; cursor: pointer; transition: background 0.2s;
+    }
+    input#lock-toggle:checked { background: rgba(80,130,220,0.38); border-color: rgba(80,130,220,0.55); }
+    input#lock-toggle::after {
+      content: ''; position: absolute;
+      width: 10px; height: 10px; background: #4488ff;
+      border-radius: 50%; top: 1px; left: 1px; transition: transform 0.2s;
+    }
+    input#lock-toggle:checked::after { transform: translateX(14px); }
+
+    #random-btn {
+      background: rgba(60,30,100,0.35); border: 1px solid rgba(130,70,210,0.3);
+      color: rgba(190,140,255,0.88); font-family: var(--font-m);
+      font-size: 0.58rem; letter-spacing: 0.1em; padding: 0.28rem 0.75rem;
+      border-radius: 4px; cursor: pointer; transition: all 0.2s; text-transform: uppercase;
+    }
+    #random-btn:hover { background: rgba(60,30,100,0.55); }
+
+    .scheme-btns { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+    .scheme-btn {
+      background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+      color: var(--text-dim); font-family: var(--font-m);
+      font-size: 0.56rem; letter-spacing: 0.08em; padding: 0.28rem 0.6rem;
+      border-radius: 4px; cursor: pointer; transition: all 0.2s; text-transform: uppercase;
+    }
+    .scheme-btn:hover, .scheme-btn.active {
+      background: rgba(80,130,220,0.14); border-color: rgba(80,130,220,0.4);
+      color: rgba(150,190,255,0.95);
+    }
+
+    #palette-display { display: flex; gap: 0.5rem; flex-wrap: wrap; min-height: 60px; align-items: flex-start; }
+    .pal-swatch {
+      display: flex; flex-direction: column; align-items: center; gap: 0.28rem;
+      cursor: pointer; opacity: 0; transform: translateY(8px);
+      transition: opacity 0.35s ease, transform 0.35s ease;
+    }
+    .pal-swatch.show { opacity: 1; transform: translateY(0); }
+    .pal-color { width: 56px; height: 38px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.09); transition: transform 0.15s; }
+    .pal-swatch:hover .pal-color { transform: scale(1.07); }
+    .pal-hex { font-size: 0.52rem; color: var(--text-dim); }
+
+    .export-row { display: flex; gap: 0.5rem; }
+    .export-btn {
+      background: rgba(18,52,22,0.48); border: 1px solid rgba(45,120,50,0.32);
+      color: rgba(80,195,88,0.9); font-family: var(--font-m);
+      font-size: 0.56rem; letter-spacing: 0.08em; padding: 0.28rem 0.75rem;
+      border-radius: 4px; cursor: pointer; transition: all 0.2s; text-transform: uppercase;
+    }
+    .export-btn:hover { background: rgba(18,52,22,0.68); }
+
+    /* ── CONTRAST CHECKER ────────────────────────────── */
+    #contrast-panel { display: flex; flex-direction: column; gap: 0.6rem; }
+
+    .pick-row {
+      display: flex; align-items: center; gap: 0.5rem;
+      background: rgba(255,255,255,0.03); border-radius: 5px; padding: 0.35rem 0.5rem;
+    }
+    .pick-dot {
+      width: 9px; height: 9px; border-radius: 50%;
+      font-family: var(--font-d); font-size: 0.55rem;
+      color: var(--text-dim); flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .pick-swatch-sm {
+      width: 28px; height: 20px; border-radius: 3px;
+      border: 1px solid rgba(255,255,255,0.1); flex-shrink: 0;
+    }
+    .pick-label-txt { font-size: 0.58rem; color: var(--text-dim); flex-shrink: 0; }
+    .pick-select {
+      flex: 1; background: rgba(10,20,40,0.8); border: 1px solid var(--border);
+      color: var(--text); font-family: var(--font-m); font-size: 0.56rem;
+      padding: 0.2rem 0.35rem; border-radius: 3px; cursor: pointer; min-width: 0;
+    }
+    .pick-select option { background: #081428; }
+
+    .contrast-result {
+      display: flex; align-items: center; gap: 0.75rem;
+      background: rgba(255,255,255,0.03); border-radius: 5px;
+      padding: 0.5rem 0.75rem;
+    }
+    .contrast-preview { display: flex; gap: 0; border-radius: 4px; overflow: hidden; flex-shrink: 0; }
+    .preview-a, .preview-b { width: 32px; height: 32px; }
+    .ratio-big {
+      font-family: var(--font-d); font-size: 1.3rem; letter-spacing: 0.05em;
+      line-height: 1; flex-shrink: 0;
+    }
+    .ratio-suffix { font-size: 0.6rem; color: var(--text-dim); align-self: flex-end; padding-bottom: 0.15rem; }
+
+    .wcag-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0.35rem;
+    }
+    .wcag-badge {
+      display: flex; align-items: center; justify-content: space-between;
+      background: rgba(255,255,255,0.03); border-radius: 4px;
+      padding: 0.3rem 0.5rem; font-size: 0.56rem;
+      border: 1px solid var(--border); gap: 0.3rem;
+    }
+    .badge-label { color: var(--text-dim); letter-spacing: 0.06em; }
+    .badge-status {
+      font-weight: 600; font-size: 0.6rem; letter-spacing: 0.08em;
+      padding: 0.1rem 0.3rem; border-radius: 3px;
+    }
+    .badge-pass .badge-status { color: #44ee66; background: rgba(40,160,70,0.18); }
+    .badge-fail .badge-status { color: #ff6666; background: rgba(180,40,40,0.15); }
+
+    /* ── SCENE ───────────────────────────────────────── */
+    #scene-wrap { flex: 1; position: relative; overflow: hidden; min-width: 0; }
+    canvas { display: block; width: 100%; height: 100%; }
+
+    /* ── TOAST ───────────────────────────────────────── */
+    #toast {
+      position: fixed; bottom: 1.5rem; left: 50%;
+      transform: translateX(-50%) translateY(2rem);
+      background: rgba(8,22,52,0.97); border: 1px solid rgba(80,130,220,0.32);
+      color: rgba(170,205,255,0.95); font-family: var(--font-m);
+      font-size: 0.7rem; padding: 0.5rem 1.3rem; border-radius: 6px;
+      backdrop-filter: blur(10px); transition: transform 0.26s ease, opacity 0.26s ease;
+      opacity: 0; pointer-events: none; z-index: 999;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+    /* ── RESPONSIVE ──────────────────────────────────── */
+    @media (max-width: 700px) {
+      body { height: auto; overflow: auto; }
+      #main { flex-direction: column; }
+      #sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--border); overflow-y: visible; }
+      #scene-wrap { height: 50vw; min-height: 240px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══ COLOR BLINDNESS BAR (top) ══════════════════════════════ -->
+<div id="cb-bar">
+  <button id="cb-toggle"><span class="arrow">▾</span> Color Blindness Simulator</button>
+  <div id="cb-content">
+    <div class="cb-row">
+      <span class="cb-type-label">Normal Vision</span>
+      <div class="cb-swatches" id="cb-normal"></div>
+    </div>
+    <div class="cb-row" style="margin-top:0.9rem">
+      <span class="cb-type-label">Protanopia</span>
+      <div class="cb-swatches" id="cb-protanopia"></div>
+    </div>
+    <div class="cb-row" style="margin-top:0.9rem">
+      <span class="cb-type-label">Deuteranopia</span>
+      <div class="cb-swatches" id="cb-deuteranopia"></div>
+    </div>
+    <div class="cb-row" style="margin-top:0.9rem; margin-bottom:0.5rem">
+      <span class="cb-type-label">Tritanopia</span>
+      <div class="cb-swatches" id="cb-tritanopia"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MAIN ════════════════════════════════════════════════════ -->
+<div id="main">
+
+  <!-- ── SIDEBAR ─────────────────────────────────────────────── -->
+  <div id="sidebar">
+
+    <!-- RGB Mixer -->
+    <div class="panel" id="rgb-panel">
+      <div class="section-title">Waterfall Mixer</div>
+      <div class="sliders-row">
+        <div class="channel">
+          <span class="ch-label" style="color:#ff7777">Red</span>
+          <span class="flow-label">FLOW</span>
+          <div class="slider-outer">
+            <div class="slider-track-bg"></div>
+            <div class="slider-fill r-fill" id="r-fill" style="height:50%"></div>
+            <input type="range" class="vert r-slider" id="r-slider" min="0" max="255" value="128" aria-label="Red">
+          </div>
+          <span class="val-display r-val" id="r-val">128</span>
+        </div>
+        <div class="channel">
+          <span class="ch-label" style="color:#66ff66">Green</span>
+          <span class="flow-label">FLOW</span>
+          <div class="slider-outer">
+            <div class="slider-track-bg"></div>
+            <div class="slider-fill g-fill" id="g-fill" style="height:50%"></div>
+            <input type="range" class="vert g-slider" id="g-slider" min="0" max="255" value="128" aria-label="Green">
+          </div>
+          <span class="val-display g-val" id="g-val">128</span>
+        </div>
+        <div class="channel">
+          <span class="ch-label" style="color:#88aaff">Blue</span>
+          <span class="flow-label">FLOW</span>
+          <div class="slider-outer">
+            <div class="slider-track-bg"></div>
+            <div class="slider-fill b-fill" id="b-fill" style="height:50%"></div>
+            <input type="range" class="vert b-slider" id="b-slider" min="0" max="255" value="128" aria-label="Blue">
+          </div>
+          <span class="val-display b-val" id="b-val">128</span>
+        </div>
+      </div>
+      <div id="color-readout">
+        <div id="swatch"></div>
+        <div class="readout-row">
+          <div class="code-line"><span class="code-lbl">HEX</span><span id="hex-out">#808080</span></div>
+          <div class="code-line"><span class="code-lbl">RGB</span><span id="rgb-out">128, 128, 128</span></div>
+        </div>
+        <button id="copy-hex">COPY HEX</button>
+      </div>
+    </div>
+
+    <!-- Palette Generator -->
+    <div class="panel" id="palette-panel">
+      <div class="section-title">Palette Generator</div>
+      <div class="pal-controls">
+        <label class="lock-wrap">
+          <input type="checkbox" id="lock-toggle">
+          <span>LOCK COLOR</span>
+        </label>
+        <button id="random-btn">Random</button>
+      </div>
+      <div class="scheme-btns">
+        <button class="scheme-btn active" data-scheme="complementary">Complementary</button>
+        <button class="scheme-btn" data-scheme="analogous">Analogous</button>
+        <button class="scheme-btn" data-scheme="triadic">Triadic</button>
+        <button class="scheme-btn" data-scheme="split">Split-Comp</button>
+        <button class="scheme-btn" data-scheme="tetradic">Tetradic</button>
+      </div>
+      <div id="palette-display"></div>
+      <div class="export-row">
+        <button class="export-btn" id="export-json">Export JSON</button>
+        <button class="export-btn" id="copy-css">Copy CSS</button>
+      </div>
+    </div>
+
+    <!-- Contrast Checker -->
+    <div class="panel" id="contrast-panel">
+      <div class="section-title">Contrast Checker — WCAG</div>
+      <div class="pick-row">
+        <span class="pick-label-txt">A</span>
+        <div class="pick-swatch-sm" id="swatch-a"></div>
+        <select class="pick-select" id="pick-a"></select>
+      </div>
+      <div class="pick-row">
+        <span class="pick-label-txt">B</span>
+        <div class="pick-swatch-sm" id="swatch-b"></div>
+        <select class="pick-select" id="pick-b"></select>
+      </div>
+      <div class="contrast-result">
+        <div class="contrast-preview">
+          <div class="preview-a" id="preview-a"></div>
+          <div class="preview-b" id="preview-b"></div>
+        </div>
+        <span class="ratio-big" id="contrast-ratio">—</span>
+        <span class="ratio-suffix">: 1</span>
+      </div>
+      <div class="wcag-grid">
+        <div class="wcag-badge" id="badge-aa-norm">
+          <span class="badge-label">AA Normal</span>
+          <span class="badge-status">—</span>
+        </div>
+        <div class="wcag-badge" id="badge-aa-large">
+          <span class="badge-label">AA Large</span>
+          <span class="badge-status">—</span>
+        </div>
+        <div class="wcag-badge" id="badge-aaa-norm">
+          <span class="badge-label">AAA Normal</span>
+          <span class="badge-status">—</span>
+        </div>
+        <div class="wcag-badge" id="badge-aaa-large">
+          <span class="badge-label">AAA Large</span>
+          <span class="badge-status">—</span>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /sidebar -->
+
+  <!-- ── SCENE ────────────────────────────────────────────────── -->
+  <div id="scene-wrap">
+    <canvas id="scene"></canvas>
+  </div>
+
+</div><!-- /main -->
+
+<div id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════════════════════
+const state = {
+  r: 128, g: 128, b: 128,
+  locked: false,
+  lockedColor: null,
+  scheme: 'complementary',
+  palette: []
+};
+
+// ════════════════════════════════════════════════════════
+//  COLOR MATH
+// ════════════════════════════════════════════════════════
+function rgbToHex(r, g, b) {
+  return '#' + [r, g, b].map(v => Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,'0')).join('');
+}
+function hexToRgb(hex) {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return m ? [parseInt(m[1],16),parseInt(m[2],16),parseInt(m[3],16)] : [0,0,0];
+}
+function rgbToHsl(r, g, b) {
+  r/=255; g/=255; b/=255;
+  const max=Math.max(r,g,b), min=Math.min(r,g,b);
+  let h=0, s=0; const l=(max+min)/2;
+  if (max!==min) {
+    const d=max-min;
+    s = l>0.5 ? d/(2-max-min) : d/(max+min);
+    switch(max){
+      case r: h=((g-b)/d+(g<b?6:0))/6; break;
+      case g: h=((b-r)/d+2)/6; break;
+      case b: h=((r-g)/d+4)/6; break;
+    }
+  }
+  return [h*360, s*100, l*100];
+}
+function hslToRgb(h, s, l) {
+  h/=360; s/=100; l/=100;
+  if (s===0){ const v=Math.round(l*255); return [v,v,v]; }
+  const q=l<0.5?l*(1+s):l+s-l*s, p=2*l-q;
+  const hue2=(p,q,t)=>{ if(t<0)t+=1;if(t>1)t-=1;if(t<1/6)return p+(q-p)*6*t;if(t<0.5)return q;if(t<2/3)return p+(q-p)*(2/3-t)*6;return p; };
+  return [Math.round(hue2(p,q,h+1/3)*255), Math.round(hue2(p,q,h)*255), Math.round(hue2(p,q,h-1/3)*255)];
+}
+function generatePalette(r, g, b, scheme) {
+  const [h,s,l] = rgbToHsl(r,g,b);
+  const rot = d => ((h+d)%360+360)%360;
+  const ss = Math.max(22,s), ll = Math.min(78,Math.max(22,l));
+  const toH = d => rgbToHex(...hslToRgb(rot(d),ss,ll));
+  const base = rgbToHex(r,g,b);
+  switch(scheme){
+    case 'complementary': return [base, toH(180)];
+    case 'analogous':     return [toH(-30), base, toH(30)];
+    case 'triadic':       return [base, toH(120), toH(240)];
+    case 'split':         return [base, toH(150), toH(210)];
+    case 'tetradic':      return [base, toH(90), toH(180), toH(270)];
+    default:              return [base];
+  }
+}
+
+// ── WCAG Contrast ──────────────────────────────────────
+function sRGBtoLin(c) {
+  const s = c/255;
+  return s<=0.04045 ? s/12.92 : Math.pow((s+0.055)/1.055, 2.4);
+}
+function relativeLuminance(r, g, b) {
+  return 0.2126*sRGBtoLin(r) + 0.7152*sRGBtoLin(g) + 0.0722*sRGBtoLin(b);
+}
+function contrastRatio(hex1, hex2) {
+  const [r1,g1,b1]=hexToRgb(hex1), [r2,g2,b2]=hexToRgb(hex2);
+  const L1=relativeLuminance(r1,g1,b1), L2=relativeLuminance(r2,g2,b2);
+  const hi=Math.max(L1,L2), lo=Math.min(L1,L2);
+  return (hi+0.05)/(lo+0.05);
+}
+
+// ── Color Blindness Simulation ─────────────────────────
+// Vienot et al. (1999) matrices — applied in linearized sRGB
+const CB_MATRICES = {
+  protanopia:   [[0.56667,0.43333,0],[0.55833,0.44167,0],[0,0.24167,0.75833]],
+  deuteranopia: [[0.625,0.375,0],[0.7,0.3,0],[0,0.3,0.7]],
+  tritanopia:   [[0.95,0.05,0],[0,0.43333,0.56667],[0,0.475,0.525]]
+};
+function linToSRGB(c) {
+  return c<=0.0031308 ? 12.92*c : 1.055*Math.pow(c,1/2.4)-0.055;
+}
+function simulateCB(r, g, b, type) {
+  const lin = [r,g,b].map(sRGBtoLin);
+  const m = CB_MATRICES[type];
+  const sim = [
+    m[0][0]*lin[0]+m[0][1]*lin[1]+m[0][2]*lin[2],
+    m[1][0]*lin[0]+m[1][1]*lin[1]+m[1][2]*lin[2],
+    m[2][0]*lin[0]+m[2][1]*lin[1]+m[2][2]*lin[2]
+  ];
+  return sim.map(c=>Math.round(Math.max(0,Math.min(1,linToSRGB(c)))*255));
+}
+
+// ════════════════════════════════════════════════════════
+//  CANVAS SCENE
+// ════════════════════════════════════════════════════════
+const canvas = document.getElementById('scene');
+const ctx = canvas.getContext('2d');
+let W=0, H=0, t=0;
+
+// Stars
+const NSTARS = 160;
+const stars = Array.from({length:NSTARS}, ()=>({
+  fx:Math.random(), fy:0.02+Math.random()*0.62,
+  r:0.35+Math.random()*1.7,
+  phase:Math.random()*Math.PI*2, speed:0.5+Math.random()*2.3
+}));
+
+// Waterfall definitions
+const WF = [
+  { fx:0.22, ch:'r', cr:255, cg:55,  cb:55,  label:'RED',   cliffTop:0.22 },
+  { fx:0.50, ch:'g', cr:55,  cg:255, cb:55,  label:'GREEN', cliffTop:0.16 },
+  { fx:0.78, ch:'b', cr:55,  cg:120, cb:255, label:'BLUE',  cliffTop:0.26 }
+];
+const LAGOON_FRAC = 0.68;
+const N_PART=120, N_FOAM=30;
+const wfParts  = WF.map(()=>Array.from({length:N_PART}, ()=>({})));
+const foamParts= WF.map(()=>Array.from({length:N_FOAM}, ()=>({})));
+let partsReady=false;
+
+function lagoonY() { return H*LAGOON_FRAC; }
+
+function resetPart(p, wx, topY, botY) {
+  p.x=wx+(Math.random()-0.5)*24; // wider spread
+  p.y=topY+Math.random()*(botY-topY);
+  p.vy=1.2+Math.random()*3.2;
+  p.vx=(Math.random()-0.5)*0.5;
+  p.op=0.3+Math.random()*0.7;
+  p.sz=1.2+Math.random()*3.8;
+  p.topY=topY; p.botY=botY; p.wx=wx;
+  p.phase=Math.random()*Math.PI*2;
+}
+function resetFoam(p, wx, botY) {
+  p.x=wx+(Math.random()-0.5)*38;
+  p.y=botY; p.vx=(Math.random()-0.5)*3.5; p.vy=-(0.5+Math.random()*2.5);
+  p.op=0.8+Math.random()*0.2; p.sz=1.2+Math.random()*2.8;
+  p.life=0; p.maxLife=25+Math.random()*45;
+}
+function initParticles() {
+  WF.forEach((wf,i)=>{
+    const wx=wf.fx*W, topY=wf.cliffTop*H, botY=lagoonY();
+    wfParts[i].forEach(p=>resetPart(p,wx,topY,botY));
+    foamParts[i].forEach(p=>resetFoam(p,wx,botY));
+  });
+  partsReady=true;
+}
+
+// ── Draw helpers ─────────────────────────────────────────
+function drawSky() {
+  const bot=lagoonY();
+  const g=ctx.createLinearGradient(0,0,0,bot);
+  g.addColorStop(0,'#050d1a'); g.addColorStop(0.55,'#071626'); g.addColorStop(1,'#091d32');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,bot);
+}
+function drawStars() {
+  stars.forEach(s=>{
+    const op=0.2+0.8*(0.5+0.5*Math.sin(t*s.speed+s.phase));
+    ctx.beginPath(); ctx.arc(s.fx*W,s.fy*H,s.r,0,Math.PI*2);
+    ctx.fillStyle=`rgba(215,228,255,${op})`; ctx.fill();
+  });
+}
+function drawMoon() {
+  const mx=W*0.74, my=H*0.13, mr=Math.min(W,H)*0.062;
+  const pulse=1+0.065*Math.sin(t*0.37);
+  const halo=ctx.createRadialGradient(mx,my,mr*0.5,mx,my,mr*3.8*pulse);
+  halo.addColorStop(0,'rgba(190,215,255,0.13)'); halo.addColorStop(0.4,'rgba(180,210,255,0.04)'); halo.addColorStop(1,'rgba(180,210,255,0)');
+  ctx.fillStyle=halo; ctx.beginPath(); ctx.arc(mx,my,mr*3.8*pulse,0,Math.PI*2); ctx.fill();
+  const disc=ctx.createRadialGradient(mx-mr*0.2,my-mr*0.2,mr*0.07,mx,my,mr);
+  disc.addColorStop(0,'#eaf2ff'); disc.addColorStop(0.5,'#c8d8f0'); disc.addColorStop(1,'#7888a8');
+  ctx.beginPath(); ctx.arc(mx,my,mr,0,Math.PI*2); ctx.fillStyle=disc; ctx.fill();
+}
+function drawCliffs() {
+  ctx.fillStyle='#03080e';
+  // LEFT
+  ctx.beginPath();
+  ctx.moveTo(0,H); ctx.lineTo(0,H*0.44); ctx.lineTo(W*0.04,H*0.36); ctx.lineTo(W*0.08,H*0.29);
+  ctx.lineTo(W*0.12,H*0.25); ctx.lineTo(W*0.16,H*0.23); ctx.lineTo(W*0.19,H*0.22);
+  ctx.lineTo(W*0.22,H*0.24); ctx.lineTo(W*0.26,H*0.31); ctx.lineTo(W*0.31,H*0.44); ctx.lineTo(W*0.35,H);
+  ctx.closePath(); ctx.fill();
+  // CENTER
+  ctx.beginPath();
+  ctx.moveTo(W*0.37,H); ctx.lineTo(W*0.40,H*0.50); ctx.lineTo(W*0.43,H*0.32); ctx.lineTo(W*0.46,H*0.21);
+  ctx.lineTo(W*0.49,H*0.17); ctx.lineTo(W*0.50,H*0.16); ctx.lineTo(W*0.51,H*0.17);
+  ctx.lineTo(W*0.54,H*0.21); ctx.lineTo(W*0.57,H*0.32); ctx.lineTo(W*0.60,H*0.50); ctx.lineTo(W*0.63,H);
+  ctx.closePath(); ctx.fill();
+  // RIGHT
+  ctx.beginPath();
+  ctx.moveTo(W*0.65,H); ctx.lineTo(W*0.68,H*0.50); ctx.lineTo(W*0.71,H*0.37); ctx.lineTo(W*0.74,H*0.30);
+  ctx.lineTo(W*0.78,H*0.26); ctx.lineTo(W*0.82,H*0.29); ctx.lineTo(W*0.87,H*0.36);
+  ctx.lineTo(W*0.92,H*0.44); ctx.lineTo(W,H*0.50); ctx.lineTo(W,H);
+  ctx.closePath(); ctx.fill();
+}
+
+function drawWaterfallSingle(i) {
+  const wf=WF[i];
+  const val=state[wf.ch];
+  if (val<2) return;
+  const alpha=val/255;
+  const {cr,cg,cb}=wf;
+  const wx=wf.fx*W, topY=wf.cliffTop*H, botY=lagoonY(), ht=botY-topY;
+  const spd=0.5+2.0*alpha;
+
+  // Real waterfalls look white/bright — aerated water reflects all wavelengths.
+  // Blend the channel color heavily toward white for the water body.
+  const wr=Math.round(cr+(255-cr)*0.75);
+  const wg=Math.round(cg+(255-cg)*0.75);
+  const wb=Math.round(cb+(255-cb)*0.75);
+
+  const curtainW=36+20*alpha; // solid stream width
+
+  // ── 1. OUTER COLORED GLOW / MIST ──────────────────────────────
+  const mistW=80+60*alpha;
+  const mist=ctx.createLinearGradient(wx-mistW,0,wx+mistW,0);
+  mist.addColorStop(0,    `rgba(${cr},${cg},${cb},0)`);
+  mist.addColorStop(0.28, `rgba(${cr},${cg},${cb},${alpha*0.09})`);
+  mist.addColorStop(0.5,  `rgba(${cr},${cg},${cb},${alpha*0.18})`);
+  mist.addColorStop(0.72, `rgba(${cr},${cg},${cb},${alpha*0.09})`);
+  mist.addColorStop(1,    `rgba(${cr},${cg},${cb},0)`);
+  ctx.fillStyle=mist; ctx.fillRect(wx-mistW,topY,mistW*2,ht);
+
+  // ── 2. SOLID WATER CURTAIN (the main visual body) ──────────────
+  // Build a wavy-edged path — narrow at the pour point, spreading with turbulence below
+  const nSteps=Math.ceil(ht/4);
+  ctx.save();
+  ctx.beginPath();
+  // Left edge
+  for (let s=0;s<=nSteps;s++) {
+    const p=s/nSteps, y=topY+p*ht;
+    const turb=Math.sin(s*0.28+t*3.8)*(2+p*8);
+    s===0 ? ctx.moveTo(wx-curtainW*0.5+turb,y) : ctx.lineTo(wx-curtainW*0.5+turb,y);
+  }
+  // Right edge (reverse, different phase)
+  for (let s=nSteps;s>=0;s--) {
+    const p=s/nSteps, y=topY+p*ht;
+    const turb=Math.sin(s*0.28+t*3.8+Math.PI*0.65)*(2+p*8);
+    ctx.lineTo(wx+curtainW*0.5+turb,y);
+  }
+  ctx.closePath();
+  // Fill: bright white at center, channel color at edges — exactly like aerated water
+  const cFill=ctx.createLinearGradient(wx-curtainW,0,wx+curtainW,0);
+  cFill.addColorStop(0,    `rgba(${cr},${cg},${cb},${alpha*0.6})`);
+  cFill.addColorStop(0.18, `rgba(${wr},${wg},${wb},${alpha*0.88})`);
+  cFill.addColorStop(0.5,  `rgba(255,255,255,${alpha*0.94})`);
+  cFill.addColorStop(0.82, `rgba(${wr},${wg},${wb},${alpha*0.88})`);
+  cFill.addColorStop(1,    `rgba(${cr},${cg},${cb},${alpha*0.6})`);
+  ctx.fillStyle=cFill; ctx.fill();
+  ctx.restore();
+
+  // ── 3. SCROLLING FLOW STREAKS (motion illusion) ────────────────
+  // Bright vertical bands that scroll downward — the signature of falling water
+  ctx.save();
+  ctx.beginPath(); ctx.rect(wx-curtainW,topY,curtainW*2,ht); ctx.clip();
+  const nStreaks=18;
+  for (let s=0;s<nStreaks;s++) {
+    const sx=wx+(s/(nStreaks-1)-0.5)*curtainW*0.88;
+    const edgeDist=Math.abs(sx-wx)/(curtainW*0.5);
+    const sAlpha=alpha*(0.55-edgeDist*0.45)*0.75;
+    if (sAlpha<0.04) continue;
+    const scrollY=((t*spd*62+s*ht*0.13)%ht+ht)%ht;
+    const sLen=ht*(0.09+0.05*Math.sin(s*1.9+t));
+    // Primary streak
+    const sy1=topY+scrollY, sy2=Math.min(sy1+sLen,botY);
+    if (sy1<botY) {
+      const sg=ctx.createLinearGradient(0,sy1,0,sy2);
+      sg.addColorStop(0,`rgba(255,255,255,0)`);
+      sg.addColorStop(0.3,`rgba(255,255,255,${sAlpha})`);
+      sg.addColorStop(0.7,`rgba(255,255,255,${sAlpha})`);
+      sg.addColorStop(1,`rgba(255,255,255,0)`);
+      ctx.fillStyle=sg; ctx.fillRect(sx-2.5,sy1,5,sy2-sy1);
+    }
+    // Wrap-around
+    if (sy1+sLen>botY) {
+      const wy2=topY+(sy1+sLen-botY);
+      const wg2=ctx.createLinearGradient(0,topY,0,wy2);
+      wg2.addColorStop(0,`rgba(255,255,255,${sAlpha})`);
+      wg2.addColorStop(1,`rgba(255,255,255,0)`);
+      ctx.fillStyle=wg2; ctx.fillRect(sx-2.5,topY,5,wy2-topY);
+    }
+  }
+  ctx.restore();
+
+  // ── 4. EDGE SPRAY PARTICLES ────────────────────────────────────
+  // Lighter, brighter particles — mist breaking off the curtain edges
+  wfParts[i].forEach(p=>{
+    p.y+=p.vy*spd; p.x+=p.vx;
+    const prog=(p.y-topY)/ht;
+    p.x+=Math.sin(t*7+p.y*0.05+p.phase)*0.5*prog;
+    if (p.y>botY+5){ resetPart(p,wx,topY,botY); p.y=topY+Math.random()*10; }
+    const fade=Math.min(prog*4,1)*Math.min((1-prog)*5,1);
+    const op=p.op*alpha*fade*0.6;
+    if (op<0.016) return;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.sz,0,Math.PI*2);
+    ctx.fillStyle=`rgba(${wr},${wg},${wb},${op})`; ctx.fill();
+  });
+
+  // ── 5. HEAVY SPLASH POOL at base ──────────────────────────────
+  // Draw a bright churning ellipse where water hits
+  const splashR=curtainW*0.9+10*alpha;
+  const splashFlat=8+5*alpha;
+  // Bright pool
+  const splashFill=ctx.createRadialGradient(wx,botY,0,wx,botY,splashR);
+  splashFill.addColorStop(0,   `rgba(255,255,255,${alpha*0.75})`);
+  splashFill.addColorStop(0.35,`rgba(${wr},${wg},${wb},${alpha*0.55})`);
+  splashFill.addColorStop(0.7, `rgba(${cr},${cg},${cb},${alpha*0.2})`);
+  splashFill.addColorStop(1,   `rgba(${cr},${cg},${cb},0)`);
+  ctx.fillStyle=splashFill;
+  ctx.beginPath(); ctx.ellipse(wx,botY,splashR,splashFlat,0,0,Math.PI*2); ctx.fill();
+  // Wide colored glow ring
+  const glow=ctx.createRadialGradient(wx,botY,splashR*0.5,wx,botY,splashR*2.8);
+  glow.addColorStop(0,`rgba(${cr},${cg},${cb},${alpha*0.22})`);
+  glow.addColorStop(1,`rgba(${cr},${cg},${cb},0)`);
+  ctx.fillStyle=glow;
+  ctx.beginPath(); ctx.ellipse(wx,botY,splashR*2.8,splashFlat*2.5,0,0,Math.PI*2); ctx.fill();
+
+  // Foam droplets
+  foamParts[i].forEach(p=>{
+    p.life++; p.x+=p.vx; p.y+=p.vy; p.vy+=0.08;
+    const prog=p.life/p.maxLife;
+    const op=p.op*alpha*(1-prog);
+    if (p.life>=p.maxLife){ resetFoam(p,wx,botY); return; }
+    if (op<0.02) return;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.sz*(1-prog*0.4),0,Math.PI*2);
+    ctx.fillStyle=`rgba(${wr},${wg},${wb},${op})`; ctx.fill();
+  });
+}
+
+function drawWaterfallLabels() {
+  ctx.textAlign='center';
+  const fsize=Math.max(9,Math.round(W*0.012));
+  ctx.font=`600 ${fsize}px 'Cinzel',serif`;
+  WF.forEach(wf=>{
+    const alpha=0.3+0.7*(state[wf.ch]/255);
+    const wx=wf.fx*W, topY=wf.cliffTop*H;
+    ctx.fillStyle=`rgba(${wf.cr},${wf.cg},${wf.cb},${alpha})`;
+    ctx.shadowColor=`rgba(${wf.cr},${wf.cg},${wf.cb},${alpha*0.88})`;
+    ctx.shadowBlur=8;
+    ctx.fillText(wf.label,wx,topY-10);
+  });
+  ctx.shadowBlur=0;
+}
+
+function drawLagoon() {
+  const {r,g,b}=state;
+  const lagTop=lagoonY(), lagH=H-lagTop;
+
+  const fill=ctx.createLinearGradient(0,lagTop,0,H);
+  fill.addColorStop(0,`rgba(${r},${g},${b},0.70)`);
+  fill.addColorStop(0.3,`rgba(${r},${g},${b},0.88)`);
+  fill.addColorStop(1,`rgba(${Math.round(r*0.3)},${Math.round(g*0.3)},${Math.round(b*0.3)},1)`);
+  ctx.fillStyle=fill; ctx.fillRect(0,lagTop,W,lagH);
+
+  // Shimmer waves
+  for (let i=0;i<8;i++){
+    const waveY=lagTop+(i/8)*lagH*0.6;
+    const amp=1.4+i*0.65, freq=0.012+i*0.0038;
+    const phase=t*(0.25+i*0.09)+i*1.2;
+    ctx.beginPath(); ctx.moveTo(0,waveY);
+    for (let x=0;x<=W;x+=5) ctx.lineTo(x,waveY+Math.sin(x*freq+phase)*amp);
+    ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath();
+    ctx.fillStyle=`rgba(255,255,255,${0.028+i*0.011})`; ctx.fill();
+  }
+
+  // Moon reflection
+  const mx=W*0.74;
+  const mr=ctx.createLinearGradient(mx,lagTop,mx,lagTop+lagH*0.5);
+  mr.addColorStop(0,'rgba(200,220,255,0.08)'); mr.addColorStop(0.4,'rgba(200,220,255,0.04)'); mr.addColorStop(1,'rgba(200,220,255,0)');
+  ctx.fillStyle=mr; ctx.fillRect(mx-14+Math.sin(t*0.27)*4,lagTop,28,lagH*0.5);
+
+  // Waterfall reflections
+  WF.forEach(wf=>{
+    const val=state[wf.ch]; if(val<5)return;
+    const a=(val/255)*0.13, {cr,cg,cb}=wf, wx=wf.fx*W;
+    const rw=16+48*(val/255);
+    const rg=ctx.createLinearGradient(0,lagTop,0,lagTop+lagH*0.55);
+    rg.addColorStop(0,`rgba(${cr},${cg},${cb},${a})`); rg.addColorStop(1,`rgba(${cr},${cg},${cb},0)`);
+    ctx.fillStyle=rg;
+    ctx.fillRect(wx-rw/2+Math.sin(t*0.42+wf.fx*5)*5,lagTop,rw,lagH*0.55);
+  });
+}
+
+function drawFrame() {
+  if (W===0||H===0) return;
+  ctx.clearRect(0,0,W,H);
+  drawSky(); drawStars(); drawMoon(); drawCliffs();
+  if (partsReady) { ctx.save(); WF.forEach((_,i)=>drawWaterfallSingle(i)); ctx.restore(); }
+  drawLagoon(); drawWaterfallLabels();
+}
+
+// ════════════════════════════════════════════════════════
+//  ANIMATION LOOP
+// ════════════════════════════════════════════════════════
+function loop() { t+=0.017; drawFrame(); requestAnimationFrame(loop); }
+
+// ════════════════════════════════════════════════════════
+//  RESIZE
+// ════════════════════════════════════════════════════════
+function resizeCanvas() {
+  const wrap=document.getElementById('scene-wrap');
+  W=Math.floor(wrap.clientWidth); H=Math.floor(wrap.clientHeight);
+  canvas.width=W; canvas.height=H;
+  if (W>0&&H>0) initParticles();
+}
+const ro=new ResizeObserver(()=>resizeCanvas());
+ro.observe(document.getElementById('scene-wrap'));
+
+// ════════════════════════════════════════════════════════
+//  UI — SLIDERS
+// ════════════════════════════════════════════════════════
+const rSlider=document.getElementById('r-slider');
+const gSlider=document.getElementById('g-slider');
+const bSlider=document.getElementById('b-slider');
+
+function setFill(id,v){ document.getElementById(id).style.height=(v/255*100)+'%'; }
+
+function updateReadout() {
+  const {r,g,b}=state;
+  const hex=rgbToHex(r,g,b);
+  document.getElementById('swatch').style.background=hex;
+  document.getElementById('hex-out').textContent=hex;
+  document.getElementById('rgb-out').textContent=`${r}, ${g}, ${b}`;
+  document.getElementById('r-val').textContent=r;
+  document.getElementById('g-val').textContent=g;
+  document.getElementById('b-val').textContent=b;
+  setFill('r-fill',r); setFill('g-fill',g); setFill('b-fill',b);
+  if (!state.locked) updatePalette();
+  else { updateContrastPicker(); updateCBSimulator(); }
+}
+function onSlider() {
+  state.r=+rSlider.value; state.g=+gSlider.value; state.b=+bSlider.value;
+  updateReadout();
+}
+rSlider.addEventListener('input',onSlider);
+gSlider.addEventListener('input',onSlider);
+bSlider.addEventListener('input',onSlider);
+document.getElementById('copy-hex').addEventListener('click',()=>{
+  navigator.clipboard.writeText(document.getElementById('hex-out').textContent).then(()=>showToast('Hex copied!'));
+});
+
+// ════════════════════════════════════════════════════════
+//  PALETTE GENERATOR
+// ════════════════════════════════════════════════════════
+function updatePalette() {
+  const br=state.locked&&state.lockedColor?state.lockedColor[0]:state.r;
+  const bg=state.locked&&state.lockedColor?state.lockedColor[1]:state.g;
+  const bb=state.locked&&state.lockedColor?state.lockedColor[2]:state.b;
+  state.palette=generatePalette(br,bg,bb,state.scheme);
+  renderPalette();
+  updateContrastPicker();
+  updateCBSimulator();
+}
+function renderPalette() {
+  const disp=document.getElementById('palette-display');
+  disp.innerHTML='';
+  state.palette.forEach((hex,i)=>{
+    const sw=document.createElement('div');
+    sw.className='pal-swatch';
+    sw.innerHTML=`<div class="pal-color" style="background:${hex}"></div><span class="pal-hex">${hex}</span>`;
+    sw.addEventListener('click',()=>{ navigator.clipboard.writeText(hex).then(()=>showToast(`Copied ${hex}`)); });
+    disp.appendChild(sw);
+    requestAnimationFrame(()=>setTimeout(()=>sw.classList.add('show'),i*70));
+  });
+}
+document.querySelectorAll('.scheme-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.scheme-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active'); state.scheme=btn.dataset.scheme; updatePalette();
+  });
+});
+document.getElementById('lock-toggle').addEventListener('change',e=>{
+  state.locked=e.target.checked;
+  state.lockedColor=state.locked?[state.r,state.g,state.b]:null;
+  updatePalette();
+});
+document.getElementById('random-btn').addEventListener('click',()=>{
+  const r=Math.floor(Math.random()*256),g=Math.floor(Math.random()*256),b=Math.floor(Math.random()*256);
+  state.r=r;state.g=g;state.b=b;
+  rSlider.value=r;gSlider.value=g;bSlider.value=b;
+  updateReadout();
+});
+document.getElementById('export-json').addEventListener('click',()=>{
+  const br=state.locked&&state.lockedColor?state.lockedColor[0]:state.r;
+  const bg=state.locked&&state.lockedColor?state.lockedColor[1]:state.g;
+  const bb=state.locked&&state.lockedColor?state.lockedColor[2]:state.b;
+  const data={baseColor:rgbToHex(br,bg,bb),scheme:state.scheme,colors:state.palette,generatedAt:new Date().toISOString()};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='palette.json'; a.click();
+  showToast('Palette exported!');
+});
+document.getElementById('copy-css').addEventListener('click',()=>{
+  const lines=state.palette.map((hex,i)=>`  --color-${i+1}: ${hex};`).join('\n');
+  navigator.clipboard.writeText(`:root {\n${lines}\n}`).then(()=>showToast('CSS vars copied!'));
+});
+
+// ════════════════════════════════════════════════════════
+//  CONTRAST CHECKER
+// ════════════════════════════════════════════════════════
+function buildColorOptions() {
+  const colors=[rgbToHex(state.r,state.g,state.b),...state.palette];
+  const labels=['Mixed',...state.palette.map((_,i)=>`Palette ${i+1}`)];
+  return colors.map((hex,i)=>({hex,label:`${labels[i]}: ${hex}`}));
+}
+
+function updateContrastPicker() {
+  const opts=buildColorOptions();
+  ['pick-a','pick-b'].forEach((id,idx)=>{
+    const sel=document.getElementById(id);
+    const prev=sel.value;
+    sel.innerHTML=opts.map(o=>`<option value="${o.hex}">${o.label}</option>`).join('');
+    if (opts.some(o=>o.hex===prev)) sel.value=prev;
+    else sel.value=opts[idx<opts.length?idx:0]?.hex||opts[0].hex;
+  });
+  // Default: A=first, B=second if available
+  const selA=document.getElementById('pick-a');
+  const selB=document.getElementById('pick-b');
+  if (opts.length>1 && selA.value===selB.value) selB.value=opts[1].hex;
+  updateContrast();
+}
+
+function updateContrast() {
+  const hex1=document.getElementById('pick-a').value;
+  const hex2=document.getElementById('pick-b').value;
+  document.getElementById('swatch-a').style.background=hex1;
+  document.getElementById('swatch-b').style.background=hex2;
+  document.getElementById('preview-a').style.background=hex1;
+  document.getElementById('preview-b').style.background=hex2;
+  const ratio=contrastRatio(hex1,hex2);
+  document.getElementById('contrast-ratio').textContent=ratio.toFixed(2);
+
+  const checks={
+    'badge-aa-norm':  [ratio>=4.5, 'PASS','FAIL'],
+    'badge-aa-large': [ratio>=3,   'PASS','FAIL'],
+    'badge-aaa-norm': [ratio>=7,   'PASS','FAIL'],
+    'badge-aaa-large':[ratio>=4.5, 'PASS','FAIL']
+  };
+  Object.entries(checks).forEach(([id,[pass,okTxt,failTxt]])=>{
+    const el=document.getElementById(id);
+    const badge=el.querySelector('.badge-status');
+    el.className='wcag-badge '+(pass?'badge-pass':'badge-fail');
+    badge.textContent=pass?okTxt:failTxt;
+  });
+}
+
+document.getElementById('pick-a').addEventListener('change',updateContrast);
+document.getElementById('pick-b').addEventListener('change',updateContrast);
+
+// ════════════════════════════════════════════════════════
+//  COLOR BLINDNESS SIMULATOR
+// ════════════════════════════════════════════════════════
+function updateCBSimulator() {
+  const colors=[rgbToHex(state.r,state.g,state.b),...state.palette];
+  const types=['normal','protanopia','deuteranopia','tritanopia'];
+
+  types.forEach(type=>{
+    const container=document.getElementById(`cb-${type}`);
+    container.innerHTML='';
+    colors.forEach(hex=>{
+      const [r,g,b]=hexToRgb(hex);
+      let simHex=hex;
+      if (type!=='normal') {
+        const [sr,sg,sb]=simulateCB(r,g,b,type);
+        simHex=rgbToHex(sr,sg,sb);
+      }
+      const sw=document.createElement('div');
+      sw.className='cb-swatch';
+      sw.style.background=simHex;
+      sw.title=`${type}: ${simHex}`;
+      const lbl=document.createElement('span');
+      lbl.className='cb-swatch-hex';
+      lbl.textContent=simHex;
+      sw.appendChild(lbl);
+      container.appendChild(sw);
+    });
+  });
+}
+
+// CB bar toggle
+const cbToggle=document.getElementById('cb-toggle');
+const cbContent=document.getElementById('cb-content');
+cbToggle.addEventListener('click',()=>{
+  const open=cbContent.classList.toggle('open');
+  cbToggle.classList.toggle('open',open);
+});
+
+// ════════════════════════════════════════════════════════
+//  TOAST
+// ════════════════════════════════════════════════════════
+let toastTimer;
+function showToast(msg) {
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>el.classList.remove('show'),2000);
+}
+
+// ════════════════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════════════════
+resizeCanvas();
+updateReadout();
+loop();
+</script>
+</body>
+</html>
