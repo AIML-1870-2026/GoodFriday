@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Readable — Readability Explorer</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --chrome:        #f2f1ef;
+      --chrome-light:  #fafaf8;
+      --chrome-border: #d4d3cf;
+      --chrome-rule:   #e6e5e1;
+      --chrome-text:   #1e1e1b;
+      --chrome-muted:  #72716a;
+      --accent:        #1a53e8;
+      --pass-bg:       #d4edda;
+      --pass-fg:       #144a20;
+      --fail-bg:       #f8d7da;
+      --fail-fg:       #6f1a1d;
+      --mono: ui-monospace, 'Cascadia Mono', 'Fira Mono', 'Courier New', monospace;
+    }
+
+    html, body { height: 100%; }
+
+    body {
+      font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      background: var(--chrome);
+      color: var(--chrome-text);
+      font-size: 13px;
+      line-height: 1.5;
+      height: 100%;
+    }
+
+    /* ── Shell ─────────────────────────────────────────────── */
+    .app { display: flex; flex-direction: column; height: 100vh; }
+
+    .app-header {
+      padding: 0.65rem 1.25rem;
+      background: var(--chrome-light);
+      border-bottom: 1px solid var(--chrome-border);
+      display: flex;
+      align-items: baseline;
+      gap: 0.75rem;
+      flex-shrink: 0;
+    }
+    .app-header h1 {
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+    }
+    .app-header .subtitle {
+      font-size: 0.72rem;
+      color: var(--chrome-muted);
+    }
+
+    .columns {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── Controls panel ────────────────────────────────────── */
+    .controls-panel {
+      width: 296px;
+      flex-shrink: 0;
+      overflow-y: auto;
+      background: var(--chrome-light);
+      border-right: 1px solid var(--chrome-border);
+    }
+
+    .ctrl-section {
+      padding: 0.85rem 1rem;
+      border-bottom: 1px solid var(--chrome-rule);
+    }
+    .ctrl-section:last-child { border-bottom: none; }
+
+    .section-title {
+      font-size: 0.6rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--chrome-muted);
+      margin-bottom: 0.55rem;
+      user-select: none;
+    }
+
+    /* ── Color picker row ──────────────────────────────────── */
+    .color-top {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-bottom: 0.55rem;
+    }
+
+    input[type="color"] {
+      width: 44px;
+      height: 44px;
+      padding: 3px;
+      border: 1px solid var(--chrome-border);
+      border-radius: 4px;
+      background: white;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .hex-wrap {
+      display: flex;
+      align-items: center;
+      border: 1px solid var(--chrome-border);
+      border-radius: 4px;
+      background: white;
+      padding: 0 0.5rem;
+      height: 30px;
+      flex: 1;
+    }
+    .hex-hash {
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      color: var(--chrome-muted);
+      margin-right: 1px;
+      user-select: none;
+    }
+    .hex-input {
+      border: none;
+      outline: none;
+      font-family: var(--mono);
+      font-size: 0.78rem;
+      width: 100%;
+      background: transparent;
+      color: var(--chrome-text);
+      text-transform: lowercase;
+    }
+
+    /* ── Slider rows ───────────────────────────────────────── */
+    .slider-row {
+      display: grid;
+      grid-template-columns: 13px 1fr 50px;
+      align-items: center;
+      gap: 0.4rem;
+      margin-bottom: 0.3rem;
+    }
+    .slider-row:last-child { margin-bottom: 0; }
+
+    .size-row {
+      grid-template-columns: 13px 1fr 44px auto;
+    }
+
+    .ch-label {
+      font-family: var(--mono);
+      font-size: 0.62rem;
+      font-weight: 700;
+      color: var(--chrome-muted);
+      text-align: center;
+      user-select: none;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      cursor: pointer;
+      accent-color: var(--accent);
+      min-height: 20px;
+    }
+
+    .ch-num {
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      padding: 0.2rem 0.3rem;
+      border: 1px solid var(--chrome-border);
+      border-radius: 3px;
+      text-align: right;
+      background: white;
+      color: var(--chrome-text);
+      width: 100%;
+      min-height: 28px;
+      -moz-appearance: textfield;
+    }
+    .ch-num::-webkit-inner-spin-button,
+    .ch-num::-webkit-outer-spin-button { opacity: 1; }
+
+    .unit-label {
+      font-family: var(--mono);
+      font-size: 0.68rem;
+      color: var(--chrome-muted);
+      padding-left: 2px;
+      user-select: none;
+    }
+
+    /* ── Vision mode radios ────────────────────────────────── */
+    .radio-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.28rem;
+    }
+    .radio-label {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-size: 0.8rem;
+      cursor: pointer;
+      padding: 0.15rem 0;
+    }
+    .radio-label input[type="radio"] {
+      accent-color: var(--accent);
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+    }
+
+    /* ── Presets ───────────────────────────────────────────── */
+    #presets {
+      width: 100%;
+      border: 1px solid var(--chrome-border);
+      border-radius: 4px;
+      padding: 0.38rem 0.45rem;
+      font-size: 0.8rem;
+      background: white;
+      color: var(--chrome-text);
+      cursor: pointer;
+    }
+
+    /* ── Display panel ─────────────────────────────────────── */
+    .display-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 1.1rem 1.25rem 1.25rem;
+      gap: 0.85rem;
+      overflow: auto;
+      background: var(--chrome);
+    }
+
+    /* ── Stats bar ─────────────────────────────────────────── */
+    .stats-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+      align-items: flex-start;
+      padding: 0.9rem 1.1rem;
+      background: var(--chrome-light);
+      border: 1px solid var(--chrome-border);
+      border-radius: 6px;
+    }
+
+    .contrast-block {}
+    .contrast-value {
+      font-family: var(--mono);
+      font-size: 2.1rem;
+      font-weight: 700;
+      letter-spacing: -0.04em;
+      line-height: 1;
+      color: var(--chrome-text);
+    }
+    .stat-label {
+      font-size: 0.58rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--chrome-muted);
+      margin-top: 0.2rem;
+    }
+
+    .lum-block {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+    .lum-row { display: flex; flex-direction: column; }
+    .lum-value {
+      font-family: var(--mono);
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--chrome-text);
+      letter-spacing: -0.02em;
+    }
+
+    /* ── WCAG badges ───────────────────────────────────────── */
+    .wcag-block {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+    .badge-item { display: flex; flex-direction: column; gap: 0.15rem; }
+    .badge-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.18rem 0.5rem;
+      border-radius: 3px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      font-family: var(--mono);
+      width: fit-content;
+    }
+    .badge-pill.pass { background: var(--pass-bg); color: var(--pass-fg); }
+    .badge-pill.fail { background: var(--fail-bg); color: var(--fail-fg); }
+
+    /* ── CVD banner ────────────────────────────────────────── */
+    .cvd-banner {
+      padding: 0.4rem 0.75rem;
+      background: #fffbea;
+      border: 1px solid #d4b800;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      color: #4a3a00;
+    }
+
+    /* ── Text canvas ───────────────────────────────────────── */
+    .text-canvas {
+      flex: 1;
+      min-height: 160px;
+      border: 1px solid var(--chrome-border);
+      border-radius: 6px;
+      padding: 1.5rem;
+      transition: background-color 100ms ease, color 100ms ease;
+      line-height: 1.65;
+    }
+
+    /* ── CVD dimming ───────────────────────────────────────── */
+    .color-ctrl-group {
+      transition: opacity 150ms ease;
+    }
+    .is-cvd .color-ctrl-group {
+      opacity: 0.35;
+      pointer-events: none;
+    }
+    .is-cvd #presets-section {
+      opacity: 0.35;
+      pointer-events: none;
+    }
+
+    /* ── Focus ─────────────────────────────────────────────── */
+    :focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    /* ── Responsive ────────────────────────────────────────── */
+    @media (max-width: 899px) {
+      .app { height: auto; }
+      .columns { flex-direction: column; overflow: visible; }
+      .controls-panel {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid var(--chrome-border);
+      }
+      .display-panel { padding: 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app" id="app">
+
+  <header class="app-header">
+    <h1>Readable</h1>
+    <span class="subtitle">WCAG Readability &amp; Color Vision Explorer</span>
+  </header>
+
+  <div class="columns">
+
+    <!-- ══ LEFT: Controls ═════════════════════════════════════════ -->
+    <div class="controls-panel">
+
+      <!-- Background Color -->
+      <section class="ctrl-section color-ctrl-group">
+        <h2 class="section-title">Background Color</h2>
+        <div class="color-top">
+          <input type="color" id="bg-picker" aria-label="Background color picker" value="#ffffff">
+          <div class="hex-wrap">
+            <span class="hex-hash" aria-hidden="true">#</span>
+            <input type="text" id="bg-hex" class="hex-input" maxlength="6" value="ffffff"
+                   spellcheck="false" autocomplete="off" aria-label="Background hex color">
+          </div>
+        </div>
+        <div class="slider-row">
+          <label for="bg-r-s" class="ch-label">R</label>
+          <input type="range" id="bg-r-s" min="0" max="255" value="255">
+          <input type="number" id="bg-r-n" class="ch-num" min="0" max="255" value="255" aria-label="Background red (0–255)">
+        </div>
+        <div class="slider-row">
+          <label for="bg-g-s" class="ch-label">G</label>
+          <input type="range" id="bg-g-s" min="0" max="255" value="255">
+          <input type="number" id="bg-g-n" class="ch-num" min="0" max="255" value="255" aria-label="Background green (0–255)">
+        </div>
+        <div class="slider-row">
+          <label for="bg-b-s" class="ch-label">B</label>
+          <input type="range" id="bg-b-s" min="0" max="255" value="255">
+          <input type="number" id="bg-b-n" class="ch-num" min="0" max="255" value="255" aria-label="Background blue (0–255)">
+        </div>
+      </section>
+
+      <!-- Text Color -->
+      <section class="ctrl-section color-ctrl-group">
+        <h2 class="section-title">Text Color</h2>
+        <div class="color-top">
+          <input type="color" id="text-picker" aria-label="Text color picker" value="#000000">
+          <div class="hex-wrap">
+            <span class="hex-hash" aria-hidden="true">#</span>
+            <input type="text" id="text-hex" class="hex-input" maxlength="6" value="000000"
+                   spellcheck="false" autocomplete="off" aria-label="Text hex color">
+          </div>
+        </div>
+        <div class="slider-row">
+          <label for="text-r-s" class="ch-label">R</label>
+          <input type="range" id="text-r-s" min="0" max="255" value="0">
+          <input type="number" id="text-r-n" class="ch-num" min="0" max="255" value="0" aria-label="Text red (0–255)">
+        </div>
+        <div class="slider-row">
+          <label for="text-g-s" class="ch-label">G</label>
+          <input type="range" id="text-g-s" min="0" max="255" value="0">
+          <input type="number" id="text-g-n" class="ch-num" min="0" max="255" value="0" aria-label="Text green (0–255)">
+        </div>
+        <div class="slider-row">
+          <label for="text-b-s" class="ch-label">B</label>
+          <input type="range" id="text-b-s" min="0" max="255" value="0">
+          <input type="number" id="text-b-n" class="ch-num" min="0" max="255" value="0" aria-label="Text blue (0–255)">
+        </div>
+      </section>
+
+      <!-- Text Size -->
+      <section class="ctrl-section">
+        <h2 class="section-title">Text Size</h2>
+        <div class="slider-row size-row">
+          <label for="size-s" class="ch-label" title="Size">Sz</label>
+          <input type="range" id="size-s" min="8" max="72" value="16">
+          <input type="number" id="size-n" class="ch-num" min="8" max="72" value="16" aria-label="Text size in pixels">
+          <span class="unit-label">px</span>
+        </div>
+      </section>
+
+      <!-- Color Vision Mode -->
+      <section class="ctrl-section">
+        <h2 class="section-title">Color Vision Mode</h2>
+        <div class="radio-group" role="radiogroup" aria-label="Color vision simulation mode">
+          <label class="radio-label"><input type="radio" name="vision" value="normal" checked> Normal</label>
+          <label class="radio-label"><input type="radio" name="vision" value="protanopia"> Protanopia</label>
+          <label class="radio-label"><input type="radio" name="vision" value="deuteranopia"> Deuteranopia</label>
+          <label class="radio-label"><input type="radio" name="vision" value="tritanopia"> Tritanopia</label>
+          <label class="radio-label"><input type="radio" name="vision" value="monochromacy"> Monochromacy</label>
+        </div>
+      </section>
+
+      <!-- Presets -->
+      <section class="ctrl-section" id="presets-section">
+        <h2 class="section-title">Load Preset</h2>
+        <select id="presets" aria-label="Load a preset color combination">
+          <option value="">Select a preset…</option>
+          <optgroup label="High Contrast">
+            <option value="#FFFFFF,#000000">Black on White (~21:1)</option>
+            <option value="#000000,#FFFFFF">White on Black (~21:1)</option>
+            <option value="#000000,#FFFF00">Yellow on Black (~19.6:1)</option>
+          </optgroup>
+          <optgroup label="Low Contrast (Fails WCAG)">
+            <option value="#AAAAAA,#888888">Grey on Grey</option>
+            <option value="#FFFFFF,#ADD8E6">Light Blue on White</option>
+          </optgroup>
+          <optgroup label="Common">
+            <option value="#FFFFFF,#000080">Navy on White</option>
+            <option value="#FFFFFF,#006400">Dark Green on White</option>
+            <option value="#0D1117,#C9D1D9">GitHub Dark</option>
+            <option value="#FDF6E3,#657B83">Solarized</option>
+          </optgroup>
+          <optgroup label="Problematic">
+            <option value="#008000,#FF0000">Red on Green (CVD-unfriendly)</option>
+            <option value="#800080,#0000FF">Blue on Purple</option>
+            <option value="#FFFFFF,#FFFF00">Yellow on White</option>
+          </optgroup>
+        </select>
+      </section>
+
+    </div><!-- /controls-panel -->
+
+    <!-- ══ RIGHT: Display ═════════════════════════════════════════ -->
+    <div class="display-panel">
+
+      <!-- Stats bar -->
+      <div class="stats-bar">
+        <div class="contrast-block">
+          <div class="contrast-value" id="contrast-value" aria-live="polite" aria-label="Contrast ratio">21.00:1</div>
+          <div class="stat-label">Contrast Ratio</div>
+        </div>
+
+        <div class="lum-block">
+          <div class="lum-row">
+            <span class="stat-label">BG Luminance</span>
+            <span class="lum-value" id="bg-lum">1.0000</span>
+          </div>
+          <div class="lum-row">
+            <span class="stat-label">Text Luminance</span>
+            <span class="lum-value" id="text-lum">0.0000</span>
+          </div>
+        </div>
+
+        <div class="wcag-block" aria-live="polite">
+          <div class="badge-item">
+            <span class="stat-label">Normal Text (4.5:1)</span>
+            <span class="badge-pill pass" id="badge-normal">✓ Pass</span>
+          </div>
+          <div class="badge-item">
+            <span class="stat-label">Large Text (3:1)</span>
+            <span class="badge-pill pass" id="badge-large">✓ Pass</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- CVD active banner -->
+      <div id="cvd-banner" class="cvd-banner" hidden aria-live="polite">
+        Simulating: <strong id="cvd-mode-name"></strong> — color controls disabled
+      </div>
+
+      <!-- Text canvas -->
+      <div class="text-canvas" id="text-canvas">
+        <p id="sample-text" style="font-size:16px">The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquor jugs. How vexingly quick daft zebras jump!</p>
+      </div>
+
+    </div><!-- /display-panel -->
+
+  </div><!-- /columns -->
+</div><!-- /app -->
+
+<script>
+'use strict';
+
+// ── Utilities ──────────────────────────────────────────────────────────────
+
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+function toHex2(n) {
+  return clamp(Math.round(n), 0, 255).toString(16).padStart(2, '0');
+}
+function rgbToHex(r, g, b) { return toHex2(r) + toHex2(g) + toHex2(b); }
+function hexToRgb(hex) {
+  return {
+    r: parseInt(hex.slice(0, 2), 16),
+    g: parseInt(hex.slice(2, 4), 16),
+    b: parseInt(hex.slice(4, 6), 16),
+  };
+}
+
+// WCAG 2.1 sRGB ↔ linear
+function linearize(c) {
+  const s = c / 255;
+  return s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+}
+function delinearize(c) {
+  c = clamp(c, 0, 1);
+  return c <= 0.0031308 ? c * 12.92 : 1.055 * Math.pow(c, 1 / 2.4) - 0.055;
+}
+function luminance(r, g, b) {
+  return 0.2126 * linearize(r) + 0.7152 * linearize(g) + 0.0722 * linearize(b);
+}
+function contrastRatio(l1, l2) {
+  const hi = Math.max(l1, l2), lo = Math.min(l1, l2);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+// ── CVD Simulation (Brettel/Viénot, applied in linear RGB) ────────────────
+
+const CVD_MATRICES = {
+  protanopia:   [[0.567, 0.433, 0.000], [0.558, 0.442, 0.000], [0.000, 0.242, 0.758]],
+  deuteranopia: [[0.625, 0.375, 0.000], [0.700, 0.300, 0.000], [0.000, 0.300, 0.700]],
+  tritanopia:   [[0.950, 0.050, 0.000], [0.000, 0.433, 0.567], [0.000, 0.475, 0.525]],
+};
+const CVD_LABELS = {
+  protanopia:   'Protanopia (red-blind)',
+  deuteranopia: 'Deuteranopia (green-blind)',
+  tritanopia:   'Tritanopia (blue-blind)',
+  monochromacy: 'Monochromacy',
+};
+
+function simulateColor(r, g, b, mode) {
+  if (mode === 'normal') return { r, g, b };
+  const rl = linearize(r), gl = linearize(g), bl = linearize(b);
+  let sr, sg, sb;
+  if (mode === 'monochromacy') {
+    sr = sg = sb = 0.2126 * rl + 0.7152 * gl + 0.0722 * bl;
+  } else {
+    const m = CVD_MATRICES[mode];
+    sr = m[0][0] * rl + m[0][1] * gl + m[0][2] * bl;
+    sg = m[1][0] * rl + m[1][1] * gl + m[1][2] * bl;
+    sb = m[2][0] * rl + m[2][1] * gl + m[2][2] * bl;
+  }
+  return {
+    r: Math.round(delinearize(sr) * 255),
+    g: Math.round(delinearize(sg) * 255),
+    b: Math.round(delinearize(sb) * 255),
+  };
+}
+
+// ── State ──────────────────────────────────────────────────────────────────
+
+let bgRgb    = { r: 255, g: 255, b: 255 };
+let textRgb  = { r: 0,   g: 0,   b: 0   };
+let textSize = 16;
+let visionMode = 'normal';
+
+// ── Color group controller ─────────────────────────────────────────────────
+
+function makeColorGroup(prefix, initial, onChange) {
+  const $ = id => document.getElementById(id);
+  const picker = $(`${prefix}-picker`);
+  const hexEl  = $(`${prefix}-hex`);
+  const rS = $(`${prefix}-r-s`), gS = $(`${prefix}-g-s`), bS = $(`${prefix}-b-s`);
+  const rN = $(`${prefix}-r-n`), gN = $(`${prefix}-g-n`), bN = $(`${prefix}-b-n`);
+
+  let rgb  = { ...initial };
+  let busy = false;
+
+  function sync(r, g, b) {
+    if (busy) return;
+    busy = true;
+    r = clamp(Math.round(r), 0, 255);
+    g = clamp(Math.round(g), 0, 255);
+    b = clamp(Math.round(b), 0, 255);
+    rgb = { r, g, b };
+    const hex = rgbToHex(r, g, b);
+    picker.value = `#${hex}`;
+    hexEl.value  = hex;
+    rS.value = r; rN.value = r;
+    gS.value = g; gN.value = g;
+    bS.value = b; bN.value = b;
+    busy = false;
+    onChange({ ...rgb });
+  }
+
+  picker.addEventListener('input', () => {
+    const h = picker.value.slice(1);
+    const c = hexToRgb(h);
+    sync(c.r, c.g, c.b);
+  });
+
+  hexEl.addEventListener('input', () => {
+    const h = hexEl.value.trim();
+    if (/^[0-9a-fA-F]{6}$/.test(h)) {
+      const c = hexToRgb(h);
+      sync(c.r, c.g, c.b);
+    }
+  });
+  hexEl.addEventListener('blur', () => {
+    hexEl.value = rgbToHex(rgb.r, rgb.g, rgb.b);
+  });
+
+  rS.addEventListener('input', () => sync(+rS.value, rgb.g, rgb.b));
+  gS.addEventListener('input', () => sync(rgb.r, +gS.value, rgb.b));
+  bS.addEventListener('input', () => sync(rgb.r, rgb.g, +bS.value));
+
+  rN.addEventListener('input', () => { const v = parseInt(rN.value); if (!isNaN(v)) sync(v, rgb.g, rgb.b); });
+  gN.addEventListener('input', () => { const v = parseInt(gN.value); if (!isNaN(v)) sync(rgb.r, v, rgb.b); });
+  bN.addEventListener('input', () => { const v = parseInt(bN.value); if (!isNaN(v)) sync(rgb.r, rgb.g, v); });
+
+  return {
+    get: () => ({ ...rgb }),
+    set: (r, g, b) => sync(r, g, b),
+  };
+}
+
+// ── DOM refs ───────────────────────────────────────────────────────────────
+
+const appEl       = document.getElementById('app');
+const textCanvas  = document.getElementById('text-canvas');
+const sampleText  = document.getElementById('sample-text');
+const contrastEl  = document.getElementById('contrast-value');
+const bgLumEl     = document.getElementById('bg-lum');
+const textLumEl   = document.getElementById('text-lum');
+const badgeNormal = document.getElementById('badge-normal');
+const badgeLarge  = document.getElementById('badge-large');
+const cvdBanner   = document.getElementById('cvd-banner');
+const cvdModeName = document.getElementById('cvd-mode-name');
+const presetsEl   = document.getElementById('presets');
+const sizeSlider  = document.getElementById('size-s');
+const sizeNum     = document.getElementById('size-n');
+
+// ── Render ─────────────────────────────────────────────────────────────────
+
+function render() {
+  const simBg   = simulateColor(bgRgb.r,   bgRgb.g,   bgRgb.b,   visionMode);
+  const simText = simulateColor(textRgb.r, textRgb.g, textRgb.b, visionMode);
+
+  textCanvas.style.backgroundColor = `rgb(${simBg.r},${simBg.g},${simBg.b})`;
+  textCanvas.style.color            = `rgb(${simText.r},${simText.g},${simText.b})`;
+  sampleText.style.fontSize         = `${textSize}px`;
+
+  const bgL   = luminance(simBg.r,   simBg.g,   simBg.b);
+  const textL = luminance(simText.r, simText.g, simText.b);
+  const ratio = contrastRatio(bgL, textL);
+
+  contrastEl.textContent = `${ratio.toFixed(2)}:1`;
+  bgLumEl.textContent    = bgL.toFixed(4);
+  textLumEl.textContent  = textL.toFixed(4);
+
+  function setBadge(el, pass) {
+    el.textContent = pass ? '✓ Pass' : '✗ Fail';
+    el.className   = `badge-pill ${pass ? 'pass' : 'fail'}`;
+  }
+  setBadge(badgeNormal, ratio >= 4.5);
+  setBadge(badgeLarge,  ratio >= 3.0);
+
+  const isCVD = visionMode !== 'normal';
+  cvdBanner.hidden = !isCVD;
+  if (isCVD) cvdModeName.textContent = CVD_LABELS[visionMode];
+  appEl.classList.toggle('is-cvd', isCVD);
+  presetsEl.disabled = isCVD;
+}
+
+// ── Wire up ────────────────────────────────────────────────────────────────
+
+const bgGroup   = makeColorGroup('bg',   bgRgb,   rgb => { bgRgb   = rgb; render(); });
+const textGroup = makeColorGroup('text', textRgb, rgb => { textRgb = rgb; render(); });
+
+sizeSlider.addEventListener('input', () => {
+  textSize = parseInt(sizeSlider.value);
+  sizeNum.value = textSize;
+  render();
+});
+sizeNum.addEventListener('input', () => {
+  const v = parseInt(sizeNum.value);
+  if (!isNaN(v)) {
+    textSize = clamp(v, 8, 72);
+    sizeSlider.value = textSize;
+    sizeNum.value    = textSize;
+    render();
+  }
+});
+
+document.querySelectorAll('input[name="vision"]').forEach(radio => {
+  radio.addEventListener('change', () => {
+    if (radio.checked) { visionMode = radio.value; render(); }
+  });
+});
+
+presetsEl.addEventListener('change', () => {
+  if (!presetsEl.value || visionMode !== 'normal') { presetsEl.value = ''; return; }
+  const [bgHex, txtHex] = presetsEl.value.split(',');
+  const bg  = hexToRgb(bgHex.slice(1));
+  const txt = hexToRgb(txtHex.slice(1));
+  bgGroup.set(bg.r, bg.g, bg.b);
+  textGroup.set(txt.r, txt.g, txt.b);
+});
+
+// Initial render
+render();
+</script>
+</body>
+</html>
