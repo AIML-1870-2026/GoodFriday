@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dicero</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="bg-canvas"></canvas>
+<canvas id="fireworks-canvas"></canvas>
+<div id="crt-overlay"></div>
+
+<div id="game">
+  <div id="topbar">
+    <div class="tb-section">
+      <div class="tb-item">GOLD <span class="gold" id="hud-gold">0</span></div>
+      <div class="tb-item">HANDS <span class="hands-val" id="hud-hands">4</span></div>
+      <div class="tb-item">REROLLS <span class="rerolls-val" id="hud-rerolls">3</span></div>
+    </div>
+    <div id="enemy-info">
+      <div id="enemy-name">Cinder Imp</div>
+      <div id="enemy-effect"></div>
+      <div id="score-progress"><div id="score-fill" style="width:0%"></div></div>
+      <div id="score-text"><span id="hud-score">0</span> / <span id="hud-target">300</span></div>
+    </div>
+    <div class="tb-section">
+      <div class="tb-item">TRIAL <span id="hud-trial" style="color:#e8d080">1</span>/5</div>
+      <div class="tb-item">ENEMY <span id="hud-encounter" style="color:#e8a0a0">1</span>/4</div>
+      <button id="bonuses-btn" class="tb-btn" onclick="showBonuses()">📊</button>
+    </div>
+  </div>
+
+  <div id="main">
+    <div id="charms-panel">
+      <h3>Charms</h3>
+      <div id="charm-slots"></div>
+    </div>
+
+    <div id="center">
+      <div id="active-effects"></div>
+      <div id="dice-area"></div>
+      <div id="score-display">
+        <span id="score-chips"></span>
+        <span class="score-x"></span>
+        <span id="score-mult"></span>
+        <span class="score-eq"></span>
+        <span id="score-result"></span>
+      </div>
+      <div id="scoring-log"></div>
+      <div id="consumables"></div>
+      <div id="actions"></div>
+    </div>
+
+    <div id="categories-panel">
+      <h3>Scoring</h3>
+      <div id="cat-list"></div>
+    </div>
+  </div>
+</div>
+
+<div id="overlay"><div id="overlay-content"></div></div>
+
+<script src="script.js"></script>
+</body>
+</html>
