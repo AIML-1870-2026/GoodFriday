@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NEO Sentinel — Near-Earth Object Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-deep: #050a14;
+      --bg-panel: #0a1628;
+      --bg-card: #0d1f3c;
+      --amber: #f5a623;
+      --blue: #4fc3f7;
+      --crimson: #e53935;
+      --green: #66bb6a;
+      --text: #e0e8f5;
+      --text2: #7a9cc0;
+      --text3: #3d5a7a;
+      --border: rgba(79,195,247,0.15);
+      --glow: 0 0 20px rgba(79,195,247,0.2);
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'IBM Plex Mono',monospace; background:var(--bg-deep); color:var(--text); min-height:100vh; overflow-x:hidden; }
+
+    /* STARFIELD */
+    #sf { position:fixed; inset:0; z-index:0; pointer-events:none; }
+
+    /* HEADER */
+    header { position:relative; z-index:10; background:linear-gradient(180deg,#020714,rgba(2,7,20,.95)); border-bottom:1px solid var(--border); padding:0 2rem; box-shadow:0 4px 30px rgba(0,0,0,.5); }
+    .htop { display:flex; align-items:center; justify-content:space-between; padding:1rem 0 .5rem; }
+    .logo { display:flex; align-items:center; gap:.9rem; }
+    .logo-text { font-family:Orbitron,monospace; font-size:1.35rem; font-weight:900; letter-spacing:.15em; color:var(--blue); text-shadow:0 0 20px rgba(79,195,247,.5); }
+    .logo-sub { font-size:.62rem; color:var(--text2); letter-spacing:.2em; text-transform:uppercase; }
+    .hcontrols { display:flex; align-items:center; gap:1rem; }
+    #clock { font-size:.75rem; color:var(--blue); opacity:.8; letter-spacing:.1em; }
+    .icon-btn { background:none; border:1px solid var(--border); color:var(--text2); padding:.4rem .7rem; border-radius:4px; cursor:pointer; font-size:1rem; transition:all .2s; }
+    .icon-btn:hover { border-color:var(--blue); color:var(--blue); box-shadow:var(--glow); }
+
+    /* TABS */
+    nav.tabs { display:flex; border-top:1px solid var(--border); margin-top:.5rem; }
+    .tb { font-family:Orbitron,monospace; font-size:.62rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--text3); background:none; border:none; padding:.8rem 1.4rem; cursor:pointer; transition:all .2s; border-bottom:2px solid transparent; white-space:nowrap; }
+    .tb:hover { color:var(--text2); }
+    .tb.active { color:var(--blue); border-bottom-color:var(--blue); text-shadow:0 0 10px rgba(79,195,247,.5); }
+
+    /* LAYOUT */
+    main { position:relative; z-index:5; padding:2rem; max-width:1400px; margin:0 auto; }
+    .panel { display:none; animation:fsi .4s ease; }
+    .panel.active { display:block; }
+    @keyframes fsi { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+
+    /* CARDS */
+    .card { background:var(--bg-card); border:1px solid var(--border); border-radius:8px; padding:1.5rem; box-shadow:var(--glow),inset 0 1px 0 rgba(255,255,255,.03); transition:box-shadow .3s; }
+    .card:hover { box-shadow:0 0 30px rgba(79,195,247,.25),inset 0 1px 0 rgba(255,255,255,.03); }
+    .card-label { font-family:Orbitron,monospace; font-size:.62rem; letter-spacing:.2em; text-transform:uppercase; color:var(--text2); margin-bottom:.6rem; }
+    .card-val { font-family:Orbitron,monospace; font-size:2rem; font-weight:700; color:var(--blue); }
+    .card-val.a { color:var(--amber); } .card-val.r { color:var(--crimson); } .card-val.g { color:var(--green); }
+    .sgrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:1rem; margin-bottom:1.5rem; }
+
+    /* HERO */
+    .hero { background:linear-gradient(135deg,#0d1f3c,#15213a,#0a1628); border:1px solid rgba(245,166,35,.3); border-radius:8px; padding:1.5rem 2rem; margin-bottom:1.5rem; box-shadow:0 0 30px rgba(245,166,35,.12); display:flex; align-items:center; gap:2rem; flex-wrap:wrap; }
+    .hero-lbl { font-family:Orbitron,monospace; font-size:.58rem; letter-spacing:.25em; text-transform:uppercase; color:var(--amber); margin-bottom:.3rem; }
+    .hero-name { font-family:Orbitron,monospace; font-size:1rem; font-weight:700; margin-bottom:.9rem; }
+    .hstats { display:flex; gap:2rem; flex-wrap:wrap; }
+    .hstat-v { font-family:'IBM Plex Mono',monospace; font-size:1.05rem; font-weight:500; color:var(--amber); }
+    .hstat-l { font-size:.58rem; color:var(--text2); letter-spacing:.1em; text-transform:uppercase; }
+
+    /* COUNTDOWN */
+    .cdown { background:linear-gradient(135deg,rgba(229,57,53,.08),rgba(245,166,35,.05)); border:1px solid rgba(229,57,53,.2); border-radius:8px; padding:1rem 1.5rem; display:flex; align-items:center; gap:1.5rem; margin-bottom:1.5rem; }
+    .cdown-n { font-family:Orbitron,monospace; font-size:2.5rem; font-weight:900; color:var(--amber); line-height:1; }
+    .cdown-lbl { font-size:.65rem; color:var(--text2); }
+    .cdown-nm { font-size:.82rem; margin-top:.2rem; }
+
+    /* TABLES */
+    .tbl-wrap { overflow-x:auto; border-radius:8px; border:1px solid var(--border); }
+    table { width:100%; border-collapse:collapse; font-size:.78rem; }
+    thead th { font-family:Orbitron,monospace; font-size:.58rem; letter-spacing:.15em; text-transform:uppercase; color:var(--text2); background:rgba(10,22,40,.9); padding:.8rem 1rem; text-align:left; border-bottom:1px solid var(--border); cursor:pointer; user-select:none; white-space:nowrap; }
+    thead th:hover { color:var(--blue); }
+    thead th.sa::after { content:' ↑'; color:var(--blue); } thead th.sd::after { content:' ↓'; color:var(--blue); }
+    tbody tr { border-bottom:1px solid rgba(79,195,247,.06); transition:background .2s; }
+    tbody tr:hover { background:rgba(79,195,247,.05); }
+    tbody tr.sel { background:rgba(79,195,247,.1); }
+    tbody td { padding:.7rem 1rem; vertical-align:middle; }
+    .alink { color:var(--blue); text-decoration:none; font-weight:500; }
+    .alink:hover { text-decoration:underline; }
+    .badge { display:inline-flex; align-items:center; gap:.3rem; padding:.2rem .6rem; border-radius:3px; font-size:.6rem; font-family:Orbitron,monospace; letter-spacing:.1em; font-weight:700; }
+    .bh { background:rgba(229,57,53,.15); border:1px solid rgba(229,57,53,.4); color:var(--crimson); animation:pr 2s infinite; }
+    .bs { background:rgba(102,187,106,.1); border:1px solid rgba(102,187,106,.3); color:var(--green); }
+    @keyframes pr { 0%,100%{opacity:1} 50%{opacity:.6} }
+
+    /* TOOLBAR */
+    .toolbar { display:flex; align-items:center; gap:1rem; margin-bottom:1rem; flex-wrap:wrap; }
+    .ftoggle { display:flex; align-items:center; gap:.5rem; font-size:.72rem; color:var(--text2); cursor:pointer; }
+    .sw { width:36px; height:20px; background:var(--bg-panel); border:1px solid var(--border); border-radius:10px; position:relative; transition:background .2s; flex-shrink:0; }
+    .sw.on { background:rgba(229,57,53,.3); border-color:var(--crimson); }
+    .sw::after { content:''; position:absolute; width:14px; height:14px; background:var(--text3); border-radius:50%; top:2px; left:2px; transition:all .2s; }
+    .sw.on::after { left:18px; background:var(--crimson); }
+    .xbtn { margin-left:auto; background:none; border:1px solid var(--border); color:var(--text2); padding:.4rem .8rem; border-radius:4px; cursor:pointer; font-family:'IBM Plex Mono',monospace; font-size:.68rem; transition:all .2s; }
+    .xbtn:hover { border-color:var(--blue); color:var(--blue); }
+
+    /* SECTION LABEL */
+    .slbl { font-family:Orbitron,monospace; font-size:.62rem; letter-spacing:.25em; text-transform:uppercase; color:var(--text2); margin-bottom:1rem; padding-bottom:.5rem; border-bottom:1px solid var(--border); }
+
+    /* LOADING / ERROR */
+    .loading { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:4rem 2rem; gap:1rem; }
+    .spin { width:48px; height:48px; border:2px solid var(--border); border-top-color:var(--blue); border-radius:50%; animation:sp 1s linear infinite; }
+    @keyframes sp { to{transform:rotate(360deg)} }
+    .ltxt { font-size:.72rem; color:var(--text2); letter-spacing:.15em; }
+    .errbox { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:3rem 2rem; gap:1rem; text-align:center; }
+    .errtxt { color:var(--crimson); font-size:.78rem; max-width:400px; }
+    .rbtn { background:none; border:1px solid var(--crimson); color:var(--crimson); padding:.5rem 1.5rem; border-radius:4px; cursor:pointer; font-family:'IBM Plex Mono',monospace; font-size:.72rem; transition:all .2s; }
+    .rbtn:hover { background:rgba(229,57,53,.1); }
+
+    /* MINI STAT BAR */
+    .msbar { display:grid; grid-template-columns:repeat(3,1fr); border:1px solid var(--border); border-radius:8px; overflow:hidden; margin-bottom:1.5rem; }
+    .ms { padding:1rem 1.5rem; border-right:1px solid var(--border); }
+    .ms:last-child { border-right:none; }
+    .ms-lbl { font-size:.58rem; letter-spacing:.15em; text-transform:uppercase; color:var(--text3); margin-bottom:.3rem; }
+    .ms-val { font-family:Orbitron,monospace; font-size:.88rem; color:var(--blue); font-weight:700; }
+
+    /* DISTANCE SCALE */
+    .dscale { background:var(--bg-panel); border:1px solid var(--border); border-radius:8px; padding:1.5rem; margin-bottom:1.5rem; overflow-x:auto; }
+    .dscale svg { min-width:600px; }
+
+    /* DETAIL PANEL */
+    .detail { background:rgba(10,22,40,.95); border:1px solid var(--blue); border-radius:6px; padding:1rem 1.5rem; margin:.25rem 0 .75rem; box-shadow:var(--glow); font-size:.75rem; line-height:1.7; }
+
+    /* TORINO */
+    .tip-wrap { position:relative; display:inline-block; }
+    .tip { position:absolute; bottom:calc(100% + 8px); left:50%; transform:translateX(-50%); background:#1a2d4d; border:1px solid var(--border); color:var(--text); font-size:.65rem; padding:.5rem .75rem; border-radius:4px; max-width:200px; text-align:center; pointer-events:none; opacity:0; transition:opacity .2s; z-index:20; white-space:normal; }
+    .tip-wrap:hover .tip { opacity:1; }
+
+    /* BANNER */
+    .banner { background:linear-gradient(90deg,rgba(229,57,53,.1),transparent); border-left:3px solid var(--crimson); padding:1rem 1.5rem; border-radius:0 6px 6px 0; margin-bottom:1.5rem; font-size:.82rem; }
+    .banner strong { font-family:Orbitron,monospace; color:var(--crimson); font-size:1.2rem; }
+
+    /* LEGEND */
+    .legend { display:flex; flex-wrap:wrap; gap:1rem; padding:1rem; background:var(--bg-panel); border-radius:6px; border:1px solid var(--border); margin-top:1rem; }
+    .li { display:flex; align-items:center; gap:.5rem; font-size:.68rem; color:var(--text2); }
+    .ldot { width:12px; height:12px; border-radius:2px; flex-shrink:0; }
+
+    /* STATUS DOTS */
+    .sdot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+    .sdot.on { background:var(--green); box-shadow:0 0 8px var(--green); }
+    .sdot.off { background:var(--crimson); box-shadow:0 0 8px var(--crimson); }
+    .sdot.pend { background:var(--amber); animation:pa 1s infinite; }
+    @keyframes pa { 0%,100%{opacity:1} 50%{opacity:.3} }
+    .api-row { display:flex; align-items:center; gap:.75rem; padding:.75rem 0; border-bottom:1px solid var(--border); }
+    .api-row:last-child { border-bottom:none; }
+
+    /* ABOUT */
+    .agrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:1rem; margin-bottom:1.5rem; }
+    .acard { background:var(--bg-panel); border:1px solid var(--border); border-radius:8px; padding:1.2rem; }
+    .acard-t { font-family:Orbitron,monospace; font-size:.7rem; color:var(--blue); margin-bottom:.5rem; letter-spacing:.1em; }
+    .acard-b { font-size:.7rem; color:var(--text2); line-height:1.65; }
+    .acard-b a { color:var(--blue); }
+
+    /* APOD */
+    .apod-img { width:100%; max-height:420px; object-fit:cover; border-radius:6px; border:1px solid var(--border); }
+
+    /* MODAL */
+    .overlay { position:fixed; inset:0; background:rgba(2,7,20,.85); backdrop-filter:blur(4px); z-index:100; display:none; align-items:center; justify-content:center; }
+    .overlay.open { display:flex; }
+    .modal { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:2rem; width:480px; max-width:90vw; box-shadow:0 0 60px rgba(79,195,247,.2); }
+    .modal-t { font-family:Orbitron,monospace; font-size:.88rem; letter-spacing:.15em; color:var(--blue); margin-bottom:1.5rem; }
+    .modal input { width:100%; background:var(--bg-panel); border:1px solid var(--border); color:var(--text); padding:.75rem 1rem; border-radius:6px; font-family:'IBM Plex Mono',monospace; font-size:.85rem; margin-bottom:1rem; transition:border-color .2s; }
+    .modal input:focus { outline:none; border-color:var(--blue); box-shadow:var(--glow); }
+    .mhint { font-size:.68rem; color:var(--text2); margin-bottom:1.5rem; }
+    .mhint a { color:var(--blue); }
+    .mact { display:flex; gap:1rem; justify-content:flex-end; }
+    .btn { padding:.6rem 1.4rem; border-radius:5px; border:none; cursor:pointer; font-family:'IBM Plex Mono',monospace; font-size:.78rem; transition:all .2s; }
+    .btn-p { background:var(--blue); color:#050a14; font-weight:500; }
+    .btn-p:hover { filter:brightness(1.1); }
+    .btn-g { background:none; border:1px solid var(--border); color:var(--text2); }
+    .btn-g:hover { border-color:var(--text2); }
+
+    @media(max-width:900px) { main{padding:1rem} .hero{gap:1rem} .msbar{grid-template-columns:1fr} .ms{border-right:none;border-bottom:1px solid var(--border)} .obs-grid{grid-template-columns:1fr!important} }
+    @media(max-width:600px) { .tb{padding:.7rem .8rem;font-size:.52rem} .logo-text{font-size:1rem} }
+  </style>
+</head>
+<body>
+
+<canvas id="sf"></canvas>
+
+<!-- Settings Modal -->
+<div class="overlay" id="modal">
+  <div class="modal">
+    <div class="modal-t">⚙ API CONFIGURATION</div>
+    <label style="font-size:.72rem;color:var(--text2);display:block;margin-bottom:.5rem">NASA API KEY</label>
+    <input type="text" id="api-input" placeholder="DEMO_KEY or your personal key">
+    <div class="mhint">Get a free key at <a href="https://api.nasa.gov/" target="_blank">api.nasa.gov</a>. DEMO_KEY is rate-limited (30 req/hr). Key stored in localStorage.</div>
+    <div class="mact">
+      <button class="btn btn-g" onclick="closeModal()">CANCEL</button>
+      <button class="btn btn-p" onclick="saveKey()">SAVE KEY</button>
+    </div>
+  </div>
+</div>
+
+<header>
+  <div class="htop">
+    <div class="logo">
+      <svg width="42" height="42" viewBox="0 0 42 42" fill="none">
+        <circle cx="21" cy="21" r="20" stroke="rgba(79,195,247,.3)" stroke-width="1"/>
+        <circle cx="21" cy="21" r="13" stroke="rgba(79,195,247,.4)" stroke-width="1"/>
+        <circle cx="21" cy="21" r="5.5" fill="rgba(79,195,247,.15)" stroke="#4fc3f7" stroke-width="1.5"/>
+        <ellipse cx="21" cy="21" rx="20" ry="5.5" stroke="rgba(79,195,247,.25)" stroke-width="1" transform="rotate(-22 21 21)"/>
+        <circle cx="7" cy="13" r="2.5" fill="#f5a623"/>
+        <circle cx="34" cy="29" r="1.5" fill="#4fc3f7"/>
+      </svg>
+      <div>
+        <div class="logo-text">NEO SENTINEL</div>
+        <div class="logo-sub">Near-Earth Object Dashboard</div>
+      </div>
+    </div>
+    <div class="hcontrols">
+      <span id="clock">UTC 00:00:00</span>
+      <button class="icon-btn" onclick="openModal()" title="API Settings">⚙</button>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button class="tb active" data-tab="t1">◉ This Week's Flybys</button>
+    <button class="tb" data-tab="t2">◎ Historical Close Calls</button>
+    <button class="tb" data-tab="t3">⚠ Impact Watch</button>
+    <button class="tb" data-tab="t4">◈ Observatory</button>
+  </nav>
+</header>
+
+<main>
+  <div class="panel active" id="t1"><div id="c1"><div class="loading"><div class="spin"></div><div class="ltxt">FETCHING NEO DATA FROM NASA...</div></div></div></div>
+  <div class="panel" id="t2"><div id="c2"><div class="loading"><div class="spin"></div><div class="ltxt">QUERYING SBDB CLOSE-APPROACH DATABASE...</div></div></div></div>
+  <div class="panel" id="t3"><div id="c3"><div class="loading"><div class="spin"></div><div class="ltxt">LOADING SENTRY IMPACT MONITORING DATA...</div></div></div></div>
+  <div class="panel" id="t4"><div id="c4"><div class="loading"><div class="spin"></div><div class="ltxt">INITIALIZING OBSERVATORY...</div></div></div></div>
+</main>
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────────────────────────
+const CFG = { get key(){ return localStorage.getItem('nasa_key')||'GWfGZRYAVfdJoKtywIJ77LPWhcLqJfgEzhLFMwZY'; } };
+const ST = {
+  t1:null, t2:null, t3:null, apod:null,
+  apiSt:{ neows:'pend', sbdb:'pend', sentry:'pend', apod:'pend' },
+  t1Sort:'miss_km', t1Dir:'asc', t1pha:false,
+  t2Sort:'cd', t2Dir:'desc',
+  t3Sort:'ps', t3Dir:'desc',
+  t2sel:null
+};
+const loaded = {t1:false,t2:false,t3:false,t4:false};
+
+// ── STARFIELD ────────────────────────────────────────────────────────────────
+(function(){
+  const c=document.getElementById('sf'), x=c.getContext('2d');
+  let s=[];
+  function rsz(){ c.width=innerWidth; c.height=innerHeight; }
+  function mk(){ s=Array.from({length:260},()=>({ x:Math.random()*c.width, y:Math.random()*c.height, r:Math.random()*1.2+.1, a:Math.random()*.7+.1, dr:Math.random()*.03-.015, ts:Math.random()*.005+.001, tp:Math.random()*Math.PI*2 })); }
+  function draw(t){ x.clearRect(0,0,c.width,c.height); s.forEach(p=>{ const a=p.a*(.5+.5*Math.sin(t*p.ts*1000+p.tp)); x.beginPath(); x.arc(p.x,p.y,p.r,0,Math.PI*2); x.fillStyle=`rgba(200,220,255,${a})`; x.fill(); p.x+=p.dr; if(p.x<0)p.x=c.width; if(p.x>c.width)p.x=0; }); requestAnimationFrame(draw); }
+  rsz(); mk(); addEventListener('resize',()=>{rsz();mk();}); requestAnimationFrame(draw);
+})();
+
+// ── CLOCK ────────────────────────────────────────────────────────────────────
+function tick(){ const n=new Date(); document.getElementById('clock').textContent=`UTC ${pad(n.getUTCHours())}:${pad(n.getUTCMinutes())}:${pad(n.getUTCSeconds())}`; }
+function pad(n){ return String(n).padStart(2,'0'); }
+setInterval(tick,1000); tick();
+
+// ── TABS ─────────────────────────────────────────────────────────────────────
+document.querySelectorAll('.tb').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.tb').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');
+  const id=b.dataset.tab;
+  document.getElementById(id).classList.add('active');
+  scrollTo({top:0,behavior:'smooth'});
+  if(!loaded[id]){ loaded[id]=true; ({t2:loadT2,t3:loadT3,t4:loadT4})[id]?.(); }
+}));
+
+// ── MODAL ────────────────────────────────────────────────────────────────────
+function openModal(){ document.getElementById('api-input').value=CFG.key; document.getElementById('modal').classList.add('open'); }
+function closeModal(){ document.getElementById('modal').classList.remove('open'); }
+document.getElementById('modal').addEventListener('click',e=>{ if(e.target===e.currentTarget)closeModal(); });
+function saveKey(){
+  const k=document.getElementById('api-input').value.trim();
+  if(!k) return;
+  localStorage.setItem('nasa_key',k);
+  closeModal();
+  Object.keys(loaded).forEach(k=>loaded[k]=false);
+  ST.t1=ST.t2=ST.t3=ST.apod=null;
+  const cur=document.querySelector('.tb.active').dataset.tab;
+  loaded[cur]=true;
+  ({t1:loadT1,t2:loadT2,t3:loadT3,t4:loadT4})[cur]();
+}
+
+// ── HELPERS ──────────────────────────────────────────────────────────────────
+const fmt=(n,d=2)=>{ const v=parseFloat(n); return isNaN(v)?'—':v.toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d}); };
+const fmtI=n=>{ const v=parseInt(n); return isNaN(v)?'—':v.toLocaleString('en-US'); };
+const today=()=>new Date().toISOString().slice(0,10);
+const offset=d=>{ const x=new Date(); x.setDate(x.getDate()+d); return x.toISOString().slice(0,10); };
+const past=d=>{ const x=new Date(); x.setDate(x.getDate()-d); return x.toISOString().slice(0,10); };
+const loading=(id,msg)=>document.getElementById(id).innerHTML=`<div class="loading"><div class="spin"></div><div class="ltxt">${msg}</div></div>`;
+const errBox=(id,msg,fn)=>document.getElementById(id).innerHTML=`<div class="errbox"><div style="font-size:2rem">⚠</div><div class="errtxt">${msg}</div><button class="rbtn" onclick="(${fn.toString()})()">↺ RETRY</button></div>`;
+async function jfetch(url){ const r=await fetch(url); if(!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }
+
+// ── TAB 1 ─────────────────────────────────────────────────────────────────────
+async function loadT1(){
+  loading('c1','FETCHING NEO DATA FROM NASA...');
+  try {
+    const url=`https://api.nasa.gov/neo/rest/v1/feed?start_date=${today()}&end_date=${offset(7)}&api_key=${CFG.key}`;
+    const data=await jfetch(url);
+    ST.apiSt.neows='on';
+    ST.t1=procT1(data);
+    rendT1();
+  } catch(e){ ST.apiSt.neows='off'; errBox('c1',e.message.includes('429')?`DEMO_KEY rate limit reached. Click ⚙ above to enter your free NASA API key (api.nasa.gov).`:`NeoWs fetch failed: ${e.message}`,loadT1); }
+}
+
+function procT1(data){
+  const all=[], td=today();
+  for(const dt in data.near_earth_objects){
+    for(const o of data.near_earth_objects[dt]){
+      const ca=o.close_approach_data[0]||{};
+      all.push({ id:o.id, name:o.name,
+        url:`https://ssd.jpl.nasa.gov/sbdb.cgi?sstr=${o.id}`,
+        date:ca.close_approach_date||dt,
+        miss_km:parseFloat(ca.miss_distance?.kilometers||0),
+        miss_ld:parseFloat(ca.miss_distance?.lunar||0),
+        velocity:parseFloat(ca.relative_velocity?.kilometers_per_second||0),
+        dmin:parseFloat(o.estimated_diameter?.meters?.estimated_diameter_min||0),
+        dmax:parseFloat(o.estimated_diameter?.meters?.estimated_diameter_max||0),
+        pha:o.is_potentially_hazardous_asteroid,
+        isToday:ca.close_approach_date===td
+      });
+    }
+  }
+  const pha=all.filter(o=>o.pha).length;
+  const todayO=all.filter(o=>o.isToday);
+  const pool=todayO.length?todayO:all;
+  const closest=pool.reduce((a,b)=>a.miss_km<b.miss_km?a:b);
+  return {all,total:data.element_count,pha,closest};
+}
+
+function sortT1(){
+  let d=ST.t1.all.slice();
+  if(ST.t1pha) d=d.filter(o=>o.pha);
+  d.sort((a,b)=>{
+    let va=a[ST.t1Sort],vb=b[ST.t1Sort];
+    if(typeof va==='string'){va=va.toLowerCase();vb=vb.toLowerCase();}
+    return ST.t1Dir==='asc'?(va<vb?-1:va>vb?1:0):(va<vb?1:va>vb?-1:0);
+  });
+  return d;
+}
+
+function rendT1(){
+  const {all,total,pha,closest}=ST.t1;
+  const safe=total-pha;
+
+  // Next PHA countdown
+  const nxt=all.filter(o=>o.pha).sort((a,b)=>new Date(a.date)-new Date(b.date))[0];
+  const cdown=nxt?`<div class="cdown"><div class="cdown-n">${Math.max(0,Math.ceil((new Date(nxt.date)-new Date())/86400000))}</div><div><div class="cdown-lbl">DAYS UNTIL NEXT PHA FLYBY</div><div class="cdown-nm">${nxt.name}</div><div style="font-size:.65rem;color:var(--text3);margin-top:.2rem">${nxt.date} · ${fmt(nxt.miss_ld,1)} LD</div></div></div>`:'';
+
+  const hero=closest?`<div class="hero"><div style="flex:1;min-width:180px"><div class="hero-lbl">◉ CLOSEST APPROACH ${closest.isToday?'TODAY':'THIS WEEK'}</div><div class="hero-name">${closest.name}</div><div class="hstats"><div><div class="hstat-v">${fmt(closest.miss_ld,2)} LD</div><div class="hstat-l">Miss Distance</div></div><div><div class="hstat-v">${fmt(closest.velocity,2)} km/s</div><div class="hstat-l">Velocity</div></div><div><div class="hstat-v">${fmt((closest.dmin+closest.dmax)/2,0)} m</div><div class="hstat-l">Est. Diameter</div></div><div><div class="hstat-v">${closest.date}</div><div class="hstat-l">Approach Date</div></div></div></div><div>${closest.pha?'<span class="badge bh">⬤ HAZARDOUS</span>':'<span class="badge bs">⬤ SAFE</span>'}</div></div>`:'';
+
+  const cols=[{k:'name',l:'Name'},{k:'date',l:'Approach Date'},{k:'miss_km',l:'Miss Distance'},{k:'velocity',l:'Velocity km/s'},{k:'dmin',l:'Diameter m'},{k:'pha',l:'Status'}];
+  const ths=cols.map(c=>`<th class="${ST.t1Sort===c.k?(ST.t1Dir==='asc'?'sa':'sd'):''}" onclick="cSort1('${c.k}')">${c.l}</th>`).join('');
+  const rows=sortT1().map(o=>`<tr><td><a class="alink" href="${o.url}" target="_blank">${o.name}</a></td><td>${o.date}</td><td>${fmt(o.miss_ld,2)} LD<br><span style="font-size:.68rem;color:var(--text3)">${fmtI(o.miss_km)} km</span></td><td>${fmt(o.velocity,2)}</td><td>${fmt(o.dmin,0)}–${fmt(o.dmax,0)}</td><td>${o.pha?'<span class="badge bh">⬤ HAZARDOUS</span>':'<span class="badge bs">⬤ SAFE</span>'}</td></tr>`).join('');
+
+  document.getElementById('c1').innerHTML=`
+    ${cdown}${hero}
+    <div class="sgrid">
+      <div class="card"><div class="card-label">Total Asteroids This Week</div><div class="card-val">${total}</div></div>
+      <div class="card"><div class="card-label">Potentially Hazardous</div><div class="card-val a">${pha}</div></div>
+      <div class="card"><div class="card-label">Non-Hazardous</div><div class="card-val g">${safe}</div></div>
+    </div>
+    <div class="toolbar">
+      <div class="ftoggle" onclick="togPHA()"><div class="sw ${ST.t1pha?'on':''}" id="sw1"></div><span>Show PHAs Only</span></div>
+      <button class="xbtn" onclick="expCSV('t1')">↓ EXPORT CSV</button>
+    </div>
+    <div class="tbl-wrap"><table><thead><tr>${ths}</tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+function cSort1(col){ ST.t1Dir=ST.t1Sort===col?(ST.t1Dir==='asc'?'desc':'asc'):'asc'; ST.t1Sort=col; rendT1(); }
+function togPHA(){ ST.t1pha=!ST.t1pha; rendT1(); }
+
+// ── TAB 2 ─────────────────────────────────────────────────────────────────────
+async function loadT2(){
+  loading('c2','QUERYING SBDB CLOSE-APPROACH DATABASE...');
+  try {
+    const jplUrl=`https://ssd-api.jpl.nasa.gov/cad.api?dist-max=0.05&date-min=${past(90)}&date-max=${today()}&sort=-date&limit=200`;
+    const data=await jfetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(jplUrl)}`);
+    ST.apiSt.sbdb='on';
+    ST.t2=procT2(data);
+    rendT2();
+  } catch(e){ ST.apiSt.sbdb='off'; errBox('c2',`SBDB fetch failed: ${e.message}`,loadT2); }
+}
+
+function procT2(data){
+  const fi=f=>data.fields.indexOf(f);
+  const rows=(data.data||[]).map(r=>({
+    des:r[fi('des')]||'—',
+    full:r[fi('des')]||'—',
+    cd:r[fi('cd')]||'—',
+    dist:parseFloat(r[fi('dist')])||0,
+    dist_ld:(parseFloat(r[fi('dist')])||0)*389.17,
+    v_rel:parseFloat(r[fi('v_rel')])||0,
+    h:fi('h')>=0&&r[fi('h')]!=null?parseFloat(r[fi('h')]):null,
+    diam:fi('diameter')>=0&&r[fi('diameter')]!=null?parseFloat(r[fi('diameter')])*1000:null
+  }));
+  let closest=null,fastest=null,recent=null;
+  rows.forEach(r=>{
+    if(!closest||r.dist<closest.dist)closest=r;
+    if(!fastest||r.v_rel>fastest.v_rel)fastest=r;
+    if(!recent||r.cd>recent.cd)recent=r;
+  });
+  return {rows,closest,fastest,recent,count:data.count};
+}
+
+function rendT2(){
+  const {rows,closest,fastest,recent,count}=ST.t2;
+  const msbar=`<div class="msbar">
+    <div class="ms"><div class="ms-lbl">Closest Approach (90d)</div><div class="ms-val">${closest?fmt(closest.dist_ld,1)+' LD':'—'}</div><div style="font-size:.62rem;color:var(--text3);margin-top:.2rem">${closest?closest.full:''}</div></div>
+    <div class="ms"><div class="ms-lbl">Fastest Object</div><div class="ms-val">${fastest?fmt(fastest.v_rel,2)+' km/s':'—'}</div><div style="font-size:.62rem;color:var(--text3);margin-top:.2rem">${fastest?fastest.full:''}</div></div>
+    <div class="ms"><div class="ms-lbl">Most Recent</div><div class="ms-val">${recent?recent.cd.slice(0,10):'—'}</div><div style="font-size:.62rem;color:var(--text3);margin-top:.2rem">${recent?recent.full:''}</div></div>
+  </div>`;
+
+  // Distance scale SVG
+  const sample=rows.slice(0,30);
+  const W=700,earthX=60,maxX=W-40;
+  const sc=d=>earthX+(d/0.05)*(maxX-earthX);
+  const dots=sample.map(r=>`<circle cx="${sc(r.dist)}" cy="50" r="${r.dist<0.005?4:3}" fill="${r.dist<0.005?'#f5a623':'#4fc3f7'}" opacity=".7"><title>${r.full}: ${fmt(r.dist_ld,1)} LD</title></circle>`).join('');
+  const svg=`<div class="dscale"><div class="card-label" style="margin-bottom:.75rem">APPROACH DISTANCES — ${sample.length} MOST RECENT OBJECTS (scale: 0→0.05 AU)</div><svg viewBox="0 0 ${W} 90" style="width:100%"><line x1="${earthX}" y1="50" x2="${maxX}" y2="50" stroke="rgba(79,195,247,.2)" stroke-width="1"/><circle cx="${earthX}" cy="50" r="10" fill="rgba(79,195,247,.15)" stroke="#4fc3f7" stroke-width="1.5"/><text x="${earthX}" y="76" text-anchor="middle" fill="#4fc3f7" font-size="9" font-family="IBM Plex Mono">EARTH</text><line x1="150" y1="35" x2="150" y2="65" stroke="rgba(79,195,247,.15)" stroke-width="1" stroke-dasharray="3,3"/><text x="150" y="25" text-anchor="middle" fill="rgba(79,195,247,.35)" font-size="8" font-family="IBM Plex Mono">Moon Orbit</text><text x="${maxX}" y="76" text-anchor="end" fill="rgba(79,195,247,.3)" font-size="8" font-family="IBM Plex Mono">0.05 AU</text>${dots}</svg></div>`;
+
+  let sorted=rows.slice().sort((a,b)=>{ let va=a[ST.t2Sort],vb=b[ST.t2Sort]; if(typeof va==='string')return ST.t2Dir==='asc'?va.localeCompare(vb):vb.localeCompare(va); return ST.t2Dir==='asc'?va-vb:vb-va; });
+  const cols=[{k:'full',l:'Object'},{k:'cd',l:'Date'},{k:'dist_ld',l:'Distance (LD/AU)'},{k:'v_rel',l:'Velocity km/s'},{k:'diam',l:'Size (m)'}];
+  const ths=cols.map(c=>`<th class="${ST.t2Sort===c.k?(ST.t2Dir==='asc'?'sa':'sd'):''}" onclick="cSort2('${c.k}')">${c.l}</th>`).join('');
+  const rows2=sorted.map((r,i)=>`<tr class="${ST.t2sel===i?'sel':''}" onclick="selT2(${i})" style="cursor:pointer"><td>${r.full}</td><td>${r.cd}</td><td>${fmt(r.dist_ld,1)} LD<br><span style="font-size:.68rem;color:var(--text3)">${fmt(r.dist,5)} AU</span></td><td>${fmt(r.v_rel,2)}</td><td>${r.diam?fmt(r.diam,0)+' m':r.h!=null?`H=${fmt(r.h,1)}`:'—'}</td></tr>${ST.t2sel===i?`<tr><td colspan="5"><div class="detail"><strong style="font-family:Orbitron,monospace;font-size:.78rem">${r.full}</strong><br><span style="color:var(--text2)">Designation: ${r.des} · Approach: ${r.cd} · Miss: ${fmt(r.dist_ld,2)} LD (${fmt(r.dist,5)} AU) · Velocity: ${fmt(r.v_rel,3)} km/s${r.diam?` · Diameter: ${fmt(r.diam,0)} m`:''}</span></div></td></tr>`:''}`).join('');
+
+  document.getElementById('c2').innerHTML=`
+    <div class="slbl">Historical Close Approaches — Last 90 Days · ${count} Objects Found</div>
+    ${msbar}${svg}
+    <div class="toolbar"><button class="xbtn" onclick="expCSV('t2')">↓ EXPORT CSV</button></div>
+    <div class="tbl-wrap"><table><thead><tr>${ths}</tr></thead><tbody>${rows2}</tbody></table></div>`;
+}
+
+function cSort2(col){ ST.t2Dir=ST.t2Sort===col?(ST.t2Dir==='asc'?'desc':'asc'):'asc'; ST.t2Sort=col; const sorted=ST.t2.rows.slice().sort((a,b)=>{ let va=a[col],vb=b[col]; if(typeof va==='string')return ST.t2Dir==='asc'?va.localeCompare(vb):vb.localeCompare(va); return ST.t2Dir==='asc'?va-vb:vb-va; }); ST.t2={...ST.t2,rows:sorted}; rendT2(); }
+function selT2(i){ ST.t2sel=ST.t2sel===i?null:i; rendT2(); }
+
+// ── TAB 3 ─────────────────────────────────────────────────────────────────────
+async function loadT3(){
+  loading('c3','LOADING SENTRY IMPACT MONITORING DATA...');
+  try {
+    const data=await jfetch('https://api.codetabs.com/v1/proxy?quest=https://ssd-api.jpl.nasa.gov/sentry.api');
+    ST.apiSt.sentry='on';
+    ST.t3=procT3(data);
+    rendT3();
+  } catch(e){ ST.apiSt.sentry='off'; errBox('c3',`Sentry fetch failed: ${e.message}`,loadT3); }
+}
+
+function procT3(data){
+  const objs=(data.data||[]).map(o=>({
+    des:o.des,
+    full:o.fullname||o.des,
+    ip:parseFloat(o.ip)||0,
+    ps:parseFloat(o.ps_max)||parseFloat(o.ps_cum)||-100,
+    ts:parseInt(o.ts_max)||0,
+    diam:o.diameter?parseFloat(o.diameter)*1000:null,
+    range:o.range||'—',
+  }));
+  return {objs,count:data.count,src:data.signature?.source||'JPL Sentry'};
+}
+
+const tcol=ts=>ts===0?'#888':ts<=3?'#ffeb3b':ts<=7?'#ff9800':'#e53935';
+const tdesc=ts=>(['No hazard','Normal close approach','Meriting attention','Meriting attention','Meriting concern — 1%+ chance','Significant threat','Large global impact risk','Extraordinarily significant','Certain — regional devastation','Certain — regional/global catastrophe','Certain — global climatic catastrophe'][ts]||'—');
+
+function rendT3(){
+  const {objs,count,src}=ST.t3;
+  const banner=`<div class="banner"><strong>${count}</strong> objects currently monitored by Sentry<div style="font-size:.65rem;color:var(--text3);margin-top:.3rem">Source: ${src} · Loaded: ${new Date().toUTCString()}</div></div>`;
+  const cols=[{k:'full',l:'Object'},{k:'ip',l:'Impact Probability'},{k:'ts',l:'Torino Scale'},{k:'ps',l:'Palermo Scale'},{k:'diam',l:'Diameter (m)'},{k:'range',l:'Impact Year Range'}];
+  const ths=cols.map(c=>`<th class="${ST.t3Sort===c.k?(ST.t3Dir==='asc'?'sa':'sd'):''}" onclick="cSort3('${c.k}')">${c.l}</th>`).join('');
+  let sorted=objs.slice().sort((a,b)=>{ const va=a[ST.t3Sort]??-999,vb=b[ST.t3Sort]??-999; return ST.t3Dir==='asc'?(typeof va==='string'?va.localeCompare(vb):va-vb):(typeof va==='string'?vb.localeCompare(va):vb-va); });
+  const rows=sorted.map(o=>`<tr><td>${o.full}</td><td style="color:var(--amber)">${o.ip>0?`1-in-${fmtI(Math.round(1/o.ip))}`:'< 0.01%'}</td><td><div class="tip-wrap"><span style="width:24px;height:24px;border-radius:50%;background:${tcol(o.ts)}22;border:1.5px solid ${tcol(o.ts)};display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:.72rem;color:${tcol(o.ts)}">${o.ts}</span><div class="tip">${tdesc(o.ts)}</div></div></td><td><div class="tip-wrap"><span style="color:${o.ps>-2?'#ff9800':'var(--text2)'}">${fmt(o.ps,2)}</span><div class="tip">Palermo Scale: values above 0 are above-average risk. Above −2 = notable.</div></div></td><td>${o.diam?fmt(o.diam,0):'—'}</td><td>${o.range}</td></tr>`).join('');
+  const legend=`<div class="legend"><div class="li"><div class="ldot" style="background:#888"></div>Torino 0 — No hazard</div><div class="li"><div class="ldot" style="background:#ffeb3b"></div>Torino 1–3 — Attention</div><div class="li"><div class="ldot" style="background:#ff9800"></div>Torino 4–7 — Concern / Threatening</div><div class="li"><div class="ldot" style="background:#e53935"></div>Torino 8–10 — Certain Impact</div><div class="li"><div class="ldot" style="background:var(--amber)"></div>Palermo > −2 = Notable Risk</div></div>`;
+  document.getElementById('c3').innerHTML=`${banner}<div class="tbl-wrap" style="margin-bottom:1rem"><table><thead><tr>${ths}</tr></thead><tbody>${rows}</tbody></table></div>${legend}`;
+}
+
+function cSort3(col){ ST.t3Dir=ST.t3Sort===col?(ST.t3Dir==='asc'?'desc':'asc'):(col==='ps'?'desc':'asc'); ST.t3Sort=col; rendT3(); }
+
+// ── TAB 4 ─────────────────────────────────────────────────────────────────────
+async function loadT4(){
+  loading('c4','INITIALIZING OBSERVATORY...');
+  try {
+    // APOD
+    let apodHTML='';
+    try {
+      const a=await jfetch(`https://api.nasa.gov/planetary/apod?api_key=${CFG.key}`);
+      ST.apod=a; ST.apiSt.apod='on';
+      const media=a.media_type==='image'?`<img class="apod-img" src="${a.url}" alt="${a.title}" loading="lazy">`:`<div style="padding:1rem;font-size:.72rem;color:var(--text2)">Media: ${a.media_type} — <a href="${a.url}" target="_blank" style="color:var(--blue)">View →</a></div>`;
+      apodHTML=`<div class="card" style="margin-bottom:1.5rem"><div class="card-label">NASA Astronomy Picture of the Day — ${a.date}</div>${media}<div style="margin-top:1rem"><div style="font-family:Orbitron,monospace;font-size:.82rem;margin-bottom:.5rem">${a.title}</div><div style="font-size:.7rem;color:var(--text2);line-height:1.65">${(a.explanation||'').slice(0,450)}${(a.explanation||'').length>450?'…':''}</div></div></div>`;
+    } catch(e){ ST.apiSt.apod='off'; const apodMsg=e.message.includes('429')?'DEMO_KEY rate limit reached — click ⚙ to set your own free NASA API key':e.message; apodHTML=`<div class="card" style="margin-bottom:1.5rem;text-align:center;padding:2rem;color:var(--text3)">APOD unavailable: ${apodMsg}</div>`; }
+
+    // Stats
+    let statsHTML='<div style="font-size:.72rem;color:var(--text3);margin-bottom:1.5rem">Visit Tab 1 and Tab 3 first to populate stats.</div>';
+    if(ST.t1){
+      const fast=ST.t1.all.reduce((a,b)=>a.velocity>b.velocity?a:b);
+      const big=ST.t1.all.reduce((a,b)=>a.dmax>b.dmax?a:b);
+      statsHTML=`<div class="sgrid" style="margin-bottom:1.5rem"><div class="card"><div class="card-label">Fastest This Week</div><div class="card-val" style="font-size:1.5rem">${fmt(fast.velocity,2)} <span style="font-size:.85rem">km/s</span></div><div style="font-size:.65rem;color:var(--text3);margin-top:.3rem">${fast.name}</div></div><div class="card"><div class="card-label">Largest This Week</div><div class="card-val a" style="font-size:1.5rem">${fmt(big.dmax,0)} <span style="font-size:.85rem">m</span></div><div style="font-size:.65rem;color:var(--text3);margin-top:.3rem">${big.name}</div></div><div class="card"><div class="card-label">Sentry Tracked</div><div class="card-val r" style="font-size:1.5rem">${ST.t3?ST.t3.count:'—'}</div></div></div>`;
+    }
+
+    // API Status
+    const sts=[{id:'neows',l:'NeoWs — Near Earth Object Web Service',u:'api.nasa.gov/neo/rest/v1/feed'},{id:'sbdb',l:'SBDB CAD — Close-Approach Data API',u:'ssd-api.jpl.nasa.gov/cad.api'},{id:'sentry',l:'Sentry — Impact Risk Monitoring API',u:'ssd-api.jpl.nasa.gov/sentry.api'},{id:'apod',l:'APOD — Astronomy Picture of the Day',u:'api.nasa.gov/planetary/apod'}];
+    const stHTML=sts.map(s=>{ const v=ST.apiSt[s.id]; const cls=v==='on'?'on':v==='off'?'off':'pend'; const lbl=v==='on'?'ONLINE':v==='off'?'OFFLINE':'PENDING'; const col=v==='on'?'var(--green)':v==='off'?'var(--crimson)':'var(--amber)'; return `<div class="api-row"><div class="sdot ${cls}"></div><div><div style="font-size:.78rem">${s.l}</div><div style="font-size:.62rem;color:var(--text3)">${s.u}</div></div><div style="margin-left:auto;font-size:.62rem;color:${col}">${lbl}</div></div>`; }).join('');
+
+    document.getElementById('c4').innerHTML=`
+      ${apodHTML}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem" class="obs-grid">
+        <div>
+          <div class="slbl">Live Aggregate Stats</div>${statsHTML}
+          <div class="slbl">API Status</div><div class="card">${stHTML}</div>
+        </div>
+        <div>
+          <div class="slbl">About Data Sources</div>
+          <div class="agrid" style="grid-template-columns:1fr">
+            <div class="acard"><div class="acard-t">NeoWs — Near Earth Object Web Service</div><div class="acard-b">NASA's primary API for near-Earth asteroids from the Center for Near Earth Object Studies (CNEOS). Provides 7-day windows of flyby data with physical parameters and close-approach details.<br><a href="https://api.nasa.gov/#NeoWS" target="_blank">api.nasa.gov/#NeoWS →</a></div></div>
+            <div class="acard"><div class="acard-t">SBDB CAD — Small-Body Database Close-Approach Data</div><div class="acard-b">JPL's comprehensive historical database of asteroid and comet close approaches to Earth and other planets. No authentication required. Covers all known historical approaches.<br><a href="https://ssd-api.jpl.nasa.gov/doc/cad.html" target="_blank">ssd-api.jpl.nasa.gov →</a></div></div>
+            <div class="acard"><div class="acard-t">Sentry — Impact Risk Monitoring System</div><div class="acard-b">JPL's automated collision monitoring system that continuously scans the asteroid catalog for potential Earth impacts over the next ~100 years. Uses Torino and Palermo scales to communicate risk.<br><a href="https://cneos.jpl.nasa.gov/sentry/" target="_blank">cneos.jpl.nasa.gov/sentry →</a></div></div>
+          </div>
+        </div>
+      </div>`;
+
+    // responsive grid
+    const sty=document.createElement('style');
+    sty.textContent='@media(max-width:900px){.obs-grid{grid-template-columns:1fr!important}}';
+    document.head.appendChild(sty);
+  } catch(e){ errBox('c4',`Observatory failed: ${e.message}`,loadT4); }
+}
+
+// ── CSV EXPORT ───────────────────────────────────────────────────────────────
+function expCSV(tab){
+  let csv='',name='';
+  if(tab==='t1'&&ST.t1){
+    const h=['Name','Date','Miss km','Miss LD','Velocity km/s','Diam Min m','Diam Max m','Hazardous'];
+    const r=sortT1().map(o=>[o.name,o.date,o.miss_km.toFixed(0),o.miss_ld.toFixed(3),o.velocity.toFixed(3),o.dmin.toFixed(1),o.dmax.toFixed(1),o.pha?'Yes':'No']);
+    csv=[h,...r].map(r=>r.map(v=>`"${v}"`).join(',')).join('\n'); name=`neo-flybys-${today()}.csv`;
+  } else if(tab==='t2'&&ST.t2){
+    const h=['Object','Date','Dist AU','Dist LD','Velocity km/s','Diameter m'];
+    const r=ST.t2.rows.map(o=>[o.full,o.cd,o.dist.toFixed(6),o.dist_ld.toFixed(2),o.v_rel.toFixed(3),o.diam?o.diam.toFixed(0):'']);
+    csv=[h,...r].map(r=>r.map(v=>`"${v}"`).join(',')).join('\n'); name=`neo-close-calls-${today()}.csv`;
+  }
+  if(!csv) return;
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download=name; a.click();
+}
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+loaded.t1=true; loadT1();
+</script>
+</body>
+</html>
