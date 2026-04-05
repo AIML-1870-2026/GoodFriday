@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Drug Safety Explorer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0f1923;
+      --bg-card: #152030;
+      --bg-panel: #1a2840;
+      --bg-input: #0d1520;
+      --teal: #2dd4bf;
+      --teal-dark: #0f766e;
+      --text: #e2e8f0;
+      --text2: #94a3b8;
+      --text3: #475569;
+      --red: #f87171;
+      --amber: #fbbf24;
+      --green: #4ade80;
+      --border: rgba(255,255,255,0.07);
+      --border-teal: rgba(45,212,191,0.2);
+      --shadow: 0 4px 24px rgba(0,0,0,0.4);
+    }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    /* HEADER */
+    header {
+      background: linear-gradient(180deg, #0a1520 0%, var(--bg) 100%);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .header-inner {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 1.75rem 2rem 1.5rem;
+      display: flex;
+      align-items: baseline;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .app-name {
+      font-size: 1.6rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .app-name span { color: var(--teal); }
+
+    .tagline {
+      font-size: 0.82rem;
+      color: var(--text2);
+      font-style: italic;
+    }
+
+    .disclaimer-banner {
+      background: rgba(251,191,36,0.08);
+      border-top: 1px solid rgba(251,191,36,0.2);
+      border-bottom: 1px solid rgba(251,191,36,0.15);
+      padding: 0.55rem 2rem;
+      font-size: 0.78rem;
+      color: var(--amber);
+      text-align: center;
+    }
+
+    /* MAIN */
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 1.75rem 2rem;
+    }
+
+    /* SEARCH PANEL */
+    .search-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      gap: 1rem;
+      align-items: flex-end;
+      flex-wrap: wrap;
+    }
+
+    .search-col { flex: 1; min-width: 180px; }
+
+    .search-label {
+      display: block;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text2);
+      margin-bottom: 0.45rem;
+    }
+
+    .ac-wrap { position: relative; }
+
+    .search-input {
+      width: 100%;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.6rem 0.9rem;
+      border-radius: 8px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.875rem;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .search-input:focus {
+      border-color: var(--teal);
+      box-shadow: 0 0 0 3px rgba(45,212,191,0.1);
+    }
+
+    .dropdown {
+      display: none;
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0; right: 0;
+      background: #1e2f45;
+      border: 1px solid var(--border-teal);
+      border-radius: 8px;
+      overflow: hidden;
+      z-index: 100;
+      box-shadow: var(--shadow);
+    }
+
+    .drop-item {
+      padding: 0.55rem 0.9rem;
+      font-size: 0.82rem;
+      font-family: 'IBM Plex Mono', monospace;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border);
+      transition: background 0.12s;
+    }
+
+    .drop-item:last-child { border-bottom: none; }
+    .drop-item:hover { background: rgba(45,212,191,0.1); color: var(--teal); }
+
+    .compare-btn {
+      background: var(--teal);
+      color: #0a1520;
+      border: none;
+      padding: 0.62rem 1.6rem;
+      border-radius: 8px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.88rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: filter 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      white-space: nowrap;
+    }
+
+    .compare-btn:hover:not(:disabled) { filter: brightness(1.1); }
+    .compare-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    .spinner {
+      width: 15px; height: 15px;
+      border: 2px solid rgba(10,21,32,0.25);
+      border-top-color: #0a1520;
+      border-radius: 50%;
+      animation: spin 0.65s linear infinite;
+      display: inline-block; flex-shrink: 0;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* RESULTS */
+    .results-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .drug-col {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .col-header {
+      padding: 0.9rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(45,212,191,0.04);
+    }
+
+    .col-tag {
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--teal);
+      margin-bottom: 0.2rem;
+    }
+
+    .col-name {
+      font-size: 1.1rem;
+      font-weight: 600;
+      font-family: 'IBM Plex Mono', monospace;
+    }
+
+    /* TABS */
+    .tab-nav {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      padding: 0 0.75rem;
+    }
+
+    .tab-btn {
+      background: none; border: none;
+      color: var(--text3);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.78rem; font-weight: 500;
+      padding: 0.65rem 0.85rem;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+
+    .tab-btn:hover { color: var(--text2); }
+    .tab-btn.active { color: var(--teal); border-bottom-color: var(--teal); }
+
+    .tab-panels { padding: 1.1rem 1.25rem; min-height: 200px; }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    /* BAR CHART */
+    .bar-chart { display: flex; flex-direction: column; gap: 0.55rem; }
+
+    .bar-row { display: flex; flex-direction: column; gap: 0.2rem; }
+
+    .bar-label {
+      font-size: 0.67rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--text2);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .bar-track { display: flex; align-items: center; gap: 0.5rem; height: 18px; }
+
+    .bar-wrap {
+      flex: 1;
+      height: 100%;
+      background: rgba(255,255,255,0.04);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--teal-dark), var(--teal));
+      border-radius: 3px;
+    }
+
+    .bar-count {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--text2);
+      min-width: 3.5rem;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    /* RECALLS */
+    .recall-list { display: flex; flex-direction: column; gap: 0.6rem; }
+
+    .recall-item {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.75rem;
+      background: rgba(255,255,255,0.015);
+    }
+
+    .recall-meta { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem; }
+
+    .recall-date {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--text3);
+    }
+
+    .class-badge {
+      font-size: 0.6rem;
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      padding: 0.12rem 0.45rem;
+      border-radius: 4px;
+    }
+
+    .c1 { background: rgba(248,113,113,0.12); color: var(--red); border: 1px solid rgba(248,113,113,0.25); }
+    .c2 { background: rgba(251,191,36,0.1); color: var(--amber); border: 1px solid rgba(251,191,36,0.2); }
+    .c3 { background: rgba(74,222,128,0.08); color: var(--green); border: 1px solid rgba(74,222,128,0.18); }
+
+    .recall-reason { font-size: 0.78rem; color: var(--text2); line-height: 1.5; }
+
+    /* ACCORDION */
+    .accordions { display: flex; flex-direction: column; gap: 0.4rem; }
+
+    .acc-btn {
+      width: 100%;
+      background: rgba(255,255,255,0.025);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 0.6rem 0.9rem;
+      border-radius: 6px;
+      cursor: pointer;
+      text-align: left;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background 0.12s;
+    }
+
+    .acc-btn:hover { background: rgba(45,212,191,0.05); }
+    .acc-btn.open { color: var(--teal); border-color: var(--border-teal); border-radius: 6px 6px 0 0; }
+
+    .acc-caret { font-size: 0.65rem; transition: transform 0.2s; }
+    .acc-btn.open .acc-caret { transform: rotate(180deg); }
+
+    .acc-body {
+      border: 1px solid var(--border-teal);
+      border-top: none;
+      border-radius: 0 0 6px 6px;
+      padding: 0.75rem 0.9rem;
+      font-size: 0.77rem;
+      color: var(--text2);
+      line-height: 1.7;
+      display: none;
+    }
+
+    /* CO-ADMIN */
+    .coadmin-section {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .section-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+    }
+
+    .section-title .teal { color: var(--teal); }
+
+    .coadmin-stat {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 2.2rem;
+      font-weight: 500;
+      color: var(--teal);
+      line-height: 1;
+      margin-bottom: 0.25rem;
+    }
+
+    .coadmin-sub {
+      font-size: 0.78rem;
+      color: var(--text2);
+      margin-bottom: 1.25rem;
+    }
+
+    .interp-box {
+      margin-top: 1.25rem;
+      border: 1px solid rgba(45,212,191,0.15);
+      border-radius: 8px;
+      background: rgba(45,212,191,0.025);
+      padding: 1rem 1.1rem;
+    }
+
+    .interp-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .interp-title {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--teal);
+    }
+
+    .sig-badge {
+      font-size: 0.58rem;
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+    }
+
+    .sig-low  { background: rgba(71,85,105,0.3); color: var(--text2); border: 1px solid var(--text3); }
+    .sig-mod  { background: rgba(251,191,36,0.1); color: var(--amber); border: 1px solid rgba(251,191,36,0.25); }
+    .sig-high { background: rgba(248,113,113,0.1); color: var(--red); border: 1px solid rgba(248,113,113,0.2); }
+
+    .interp-body {
+      font-size: 0.77rem;
+      color: var(--text2);
+      line-height: 1.75;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .interp-body p { margin: 0; }
+    .interp-body strong { color: var(--text); font-weight: 600; }
+
+    .danger-block {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      background: rgba(0,0,0,0.2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 1.25rem;
+      flex-wrap: wrap;
+    }
+
+    .danger-score-wrap { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
+
+    .danger-num {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 3rem;
+      font-weight: 500;
+      line-height: 1;
+    }
+
+    .danger-denom {
+      font-size: 0.65rem;
+      color: var(--text3);
+      letter-spacing: 0.08em;
+      margin-top: 0.2rem;
+    }
+
+    .danger-pips {
+      display: flex;
+      gap: 4px;
+      margin-top: 0.6rem;
+    }
+
+    .pip {
+      width: 14px;
+      height: 6px;
+      border-radius: 2px;
+      background: rgba(255,255,255,0.08);
+    }
+
+    .pip.on-low    { background: var(--green); }
+    .pip.on-mid    { background: var(--amber); }
+    .pip.on-high   { background: var(--red); }
+
+    .danger-detail { flex: 1; min-width: 200px; }
+
+    .danger-label {
+      font-size: 0.8rem;
+      font-weight: 700;
+      margin-bottom: 0.35rem;
+    }
+
+    .danger-factors {
+      font-size: 0.72rem;
+      color: var(--text2);
+      line-height: 1.65;
+    }
+
+    .danger-factors li { margin-left: 1rem; margin-bottom: 0.2rem; }
+
+    .danger-caveat {
+      font-size: 0.68rem;
+      color: var(--text3);
+      margin-top: 0.5rem;
+      font-style: italic;
+    }
+
+    /* STATES */
+    .empty { color: var(--text3); font-size: 0.8rem; padding: 0.75rem 0; }
+    .err { color: var(--red); font-size: 0.78rem; padding: 0.5rem 0; }
+
+    /* SKELETON */
+    .skel {
+      background: linear-gradient(90deg, var(--bg-panel) 25%, #243447 50%, var(--bg-panel) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 4px;
+      margin-bottom: 10px;
+    }
+
+    @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+    /* DIVIDER */
+    .mini-label {
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text3);
+      margin: 0.75rem 0 0.5rem;
+    }
+
+    /* FOOTER */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 1.75rem 2rem;
+    }
+
+    .footer-inner {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+    }
+
+    .footer-label {
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text3);
+      margin-bottom: 0.4rem;
+    }
+
+    .footer-text {
+      font-size: 0.73rem;
+      color: var(--text3);
+      line-height: 1.65;
+    }
+
+    @media (max-width: 860px) {
+      .results-grid { grid-template-columns: 1fr; }
+      .footer-inner { grid-template-columns: 1fr; }
+      .search-panel { flex-direction: column; }
+      .compare-btn { width: 100%; justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <h1 class="app-name">Drug Safety <span>Explorer</span></h1>
+    <p class="tagline">"Explore FDA drug safety data for educational purposes"</p>
+  </div>
+  <div class="disclaimer-banner">
+    ⚠️ <strong>Educational Use Only.</strong> This tool is not a substitute for professional medical advice.
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- SEARCH PANEL -->
+  <div class="search-panel">
+    <div class="search-col">
+      <label class="search-label" for="inp-a">Drug A</label>
+      <div class="ac-wrap">
+        <input class="search-input" id="inp-a" type="text" placeholder="e.g. Warfarin" autocomplete="off" spellcheck="false">
+        <div class="dropdown" id="drop-a"></div>
+      </div>
+    </div>
+    <div class="search-col">
+      <label class="search-label" for="inp-b">Drug B</label>
+      <div class="ac-wrap">
+        <input class="search-input" id="inp-b" type="text" placeholder="e.g. Ibuprofen" autocomplete="off" spellcheck="false">
+        <div class="dropdown" id="drop-b"></div>
+      </div>
+    </div>
+    <button class="compare-btn" id="cmp-btn" onclick="runCompare()">Compare Drugs</button>
+  </div>
+
+  <!-- CO-ADMIN -->
+  <div class="coadmin-section" id="coadmin" style="display:none">
+    <div class="section-title">⚕ Co-administration Analysis — <span class="teal" id="coadmin-drugs"></span></div>
+    <div id="coadmin-body"></div>
+  </div>
+
+  <!-- RESULTS -->
+  <div class="results-grid" id="results" style="display:none">
+    <div class="drug-col" id="col-a">
+      <div class="col-header">
+        <div class="col-tag">Drug A</div>
+        <div class="col-name" id="name-a">—</div>
+      </div>
+      <div class="tab-nav">
+        <button class="tab-btn active" onclick="switchTab('a','events',this)">Adverse Events</button>
+        <button class="tab-btn" onclick="switchTab('a','recalls',this)">Recalls</button>
+        <button class="tab-btn" onclick="switchTab('a','label',this)">Label Info</button>
+      </div>
+      <div class="tab-panels">
+        <div class="tab-pane active" id="a-events"></div>
+        <div class="tab-pane" id="a-recalls"></div>
+        <div class="tab-pane" id="a-label"></div>
+      </div>
+    </div>
+
+    <div class="drug-col" id="col-b">
+      <div class="col-header">
+        <div class="col-tag">Drug B</div>
+        <div class="col-name" id="name-b">—</div>
+      </div>
+      <div class="tab-nav">
+        <button class="tab-btn active" onclick="switchTab('b','events',this)">Adverse Events</button>
+        <button class="tab-btn" onclick="switchTab('b','recalls',this)">Recalls</button>
+        <button class="tab-btn" onclick="switchTab('b','label',this)">Label Info</button>
+      </div>
+      <div class="tab-panels">
+        <div class="tab-pane active" id="b-events"></div>
+        <div class="tab-pane" id="b-recalls"></div>
+        <div class="tab-pane" id="b-label"></div>
+      </div>
+    </div>
+  </div>
+
+
+</div>
+
+<footer>
+  <div class="footer-inner">
+    <div>
+      <div class="footer-label">Disclaimer</div>
+      <p class="footer-text">This tool is for educational purposes only and is not intended to provide medical advice. Always consult a qualified healthcare provider before making any medical decisions.</p>
+    </div>
+    <div>
+      <div class="footer-label">FDA Attribution</div>
+      <p class="footer-text">This product uses publicly available data from the U.S. Food and Drug Administration (FDA). FDA is not responsible for the product and does not endorse or recommend this or any other product.</p>
+    </div>
+  </div>
+</footer>
+
+<script>
+// ── FETCH ─────────────────────────────────────────────────────────────────────
+async function jfetch(url) {
+  let r;
+  try { r = await fetch(url); } catch (e) { throw new Error('network'); }
+  if (r.status === 429) throw new Error('429');
+  if (!r.ok) throw new Error(`${r.status}`);
+  return r.json();
+}
+
+function errMsg(e) {
+  if (e.message === '429') return 'Too many requests. Please wait a moment and try again.';
+  if (e.message === 'network') return 'Unable to reach the FDA API. Check your connection.';
+  return `Error: ${e.message}`;
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function fmtDate(s) {
+  if (!s || s.length < 8) return s || '—';
+  try {
+    return new Date(`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)}`)
+      .toLocaleDateString('en-US', {year:'numeric', month:'short', day:'numeric'});
+  } catch { return s; }
+}
+
+function classCss(c) {
+  if (!c) return 'c3';
+  const up = c.toUpperCase();
+  if (up.startsWith('CLASS I') && !up.startsWith('CLASS II') && !up.startsWith('CLASS III')) return 'c1';
+  if (up.startsWith('CLASS II') && !up.startsWith('CLASS III')) return 'c2';
+  return 'c3';
+}
+
+function skel(rows = 6) {
+  return Array.from({length: rows}, (_, i) =>
+    `<div class="skel" style="height:18px;width:${95 - i * 7}%;margin-bottom:10px"></div>`
+  ).join('');
+}
+
+// ── TABS ──────────────────────────────────────────────────────────────────────
+function switchTab(drug, tab, btn) {
+  const col = document.getElementById(`col-${drug}`);
+  col.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  col.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(`${drug}-${tab}`).classList.add('active');
+}
+
+// ── ACCORDION ─────────────────────────────────────────────────────────────────
+function togAcc(btn) {
+  const open = btn.classList.contains('open');
+  btn.classList.toggle('open', !open);
+  btn.nextElementSibling.style.display = open ? 'none' : 'block';
+}
+
+// ── AUTOCOMPLETE ──────────────────────────────────────────────────────────────
+function setupAC(inpId, dropId) {
+  const inp = document.getElementById(inpId);
+  const drop = document.getElementById(dropId);
+  let t = null;
+
+  inp.addEventListener('input', () => {
+    clearTimeout(t);
+    const q = inp.value.trim();
+    if (q.length < 2) { drop.style.display = 'none'; return; }
+    t = setTimeout(async () => {
+      try {
+        const url = `https://api.fda.gov/drug/label.json?search=openfda.brand_name:${encodeURIComponent(q + '*')}&limit=5`;
+        const data = await jfetch(url);
+        const names = [...new Set(
+          (data.results || []).flatMap(r => r.openfda?.brand_name || [])
+        )].slice(0, 6);
+        if (!names.length) { drop.style.display = 'none'; return; }
+        drop.innerHTML = names.map(n =>
+          `<div class="drop-item" onmousedown="pickDrug('${inpId}','${dropId}','${n.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')">${n}</div>`
+        ).join('');
+        drop.style.display = 'block';
+      } catch { drop.style.display = 'none'; }
+    }, 300);
+  });
+
+  inp.addEventListener('blur', () => setTimeout(() => drop.style.display = 'none', 160));
+}
+
+function pickDrug(inpId, dropId, name) {
+  document.getElementById(inpId).value = name;
+  document.getElementById(dropId).style.display = 'none';
+}
+
+// ── API CALLS ─────────────────────────────────────────────────────────────────
+const FDA = 'https://api.fda.gov';
+
+function fetchEvents(drug) {
+  return jfetch(`${FDA}/drug/event.json?search=patient.drug.medicinalproduct:"${encodeURIComponent(drug)}"&count=patient.reaction.reactionmeddrapt.exact&limit=10`);
+}
+
+function fetchRecalls(drug) {
+  return jfetch(`${FDA}/drug/enforcement.json?search=product_description:"${encodeURIComponent(drug)}"&limit=10&sort=report_date:desc`);
+}
+
+function fetchLabel(drug) {
+  return jfetch(`${FDA}/drug/label.json?search=openfda.brand_name:"${encodeURIComponent(drug)}"&limit=1`);
+}
+
+async function fetchCoAdmin(a, b) {
+  const q = `patient.drug.medicinalproduct:"${encodeURIComponent(a)}"+AND+patient.drug.medicinalproduct:"${encodeURIComponent(b)}"`;
+  const [total, reactions] = await Promise.allSettled([
+    jfetch(`${FDA}/drug/event.json?search=${q}&limit=1`),
+    jfetch(`${FDA}/drug/event.json?search=${q}&count=patient.reaction.reactionmeddrapt.exact&limit=5`)
+  ]);
+  return { total, reactions };
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+function renderEvents(res, drug) {
+  const el = document.getElementById(`${drug}-events`);
+  if (res.status === 'rejected') {
+    el.innerHTML = `<p class="err">${errMsg(res.reason)}</p>`;
+    return;
+  }
+  const items = res.value?.results;
+  if (!items?.length) {
+    el.innerHTML = '<p class="empty">No adverse event reports found for this drug.</p>';
+    return;
+  }
+  const max = items[0].count;
+  el.innerHTML = `<div class="bar-chart">${items.map(r => `
+    <div class="bar-row">
+      <div class="bar-label">${r.term}</div>
+      <div class="bar-track">
+        <div class="bar-wrap"><div class="bar-fill" style="width:${(r.count/max*100).toFixed(1)}%"></div></div>
+        <span class="bar-count">${r.count.toLocaleString()}</span>
+      </div>
+    </div>`).join('')}</div>`;
+}
+
+function renderRecalls(res, drug) {
+  const el = document.getElementById(`${drug}-recalls`);
+  if (res.status === 'rejected') {
+    const is404 = res.reason.message === '404';
+    el.innerHTML = `<p class="${is404 ? 'empty' : 'err'}">${is404 ? 'No recalls on record for this drug.' : errMsg(res.reason)}</p>`;
+    return;
+  }
+  const items = res.value?.results;
+  if (!items?.length) { el.innerHTML = '<p class="empty">No recalls on record for this drug.</p>'; return; }
+  el.innerHTML = `<div class="recall-list">${items.map(r => `
+    <div class="recall-item">
+      <div class="recall-meta">
+        <span class="recall-date">${fmtDate(r.report_date)}</span>
+        <span class="class-badge ${classCss(r.classification)}">${r.classification || '—'}</span>
+      </div>
+      <div class="recall-reason">${(r.reason_for_recall || '—').slice(0, 120)}${(r.reason_for_recall || '').length > 120 ? '…' : ''}</div>
+    </div>`).join('')}</div>`;
+}
+
+function renderLabel(res, drug) {
+  const el = document.getElementById(`${drug}-label`);
+  if (res.status === 'rejected') {
+    const is404 = res.reason.message === '404';
+    el.innerHTML = `<p class="${is404 ? 'empty' : 'err'}">${is404 ? 'No label information found for this drug.' : errMsg(res.reason)}</p>`;
+    return;
+  }
+  const lbl = res.value?.results?.[0];
+  if (!lbl) { el.innerHTML = '<p class="empty">No label information found.</p>'; return; }
+
+  const sections = [
+    ['Warnings', lbl.warnings],
+    ['Contraindications', lbl.contraindications],
+    ['Adverse Reactions', lbl.adverse_reactions],
+    ['Drug Interactions', lbl.drug_interactions],
+    ['Dosage & Administration', lbl.dosage_and_administration],
+  ];
+
+  el.innerHTML = `<div class="accordions">${sections.map(([title, content], i) => {
+    const text = content?.[0]
+      ? content[0].replace(/\n/g, '<br>').slice(0, 1200) + (content[0].length > 1200 ? '…' : '')
+      : 'No information available.';
+    return `
+      <button class="acc-btn${i === 0 ? ' open' : ''}" onclick="togAcc(this)">${title} <span class="acc-caret">▼</span></button>
+      <div class="acc-body" style="${i === 0 ? 'display:block' : ''}">${text}</div>`;
+  }).join('')}</div>`;
+}
+
+const SEVERITY_HIGH = ['death','cardiac arrest','anaphylactic','anaphylaxis','haemorrhage','hemorrhage','stroke','respiratory failure','renal failure','hepatic failure','liver failure','sepsis','pulmonary embolism','ventricular fibrillation','cardiac failure','myocardial infarction','coma','fatal'];
+const SEVERITY_MOD  = ['hospitalisation','hospitalization','thrombosis','embolism','seizure','convulsion','syncope','angioedema','agranulocytosis','thrombocytopenia','hypertensive crisis','rhabdomyolysis','serotonin syndrome','bleeding','haematoma','hematoma'];
+
+function dangerScore(count, rxTerms) {
+  // Volume component: 0–4 pts
+  let vol = 0;
+  if (count >= 50)    vol = 1;
+  if (count >= 500)   vol = 2;
+  if (count >= 5000)  vol = 3;
+  if (count >= 50000) vol = 4;
+
+  // Severity component: 0–6 pts based on reaction keywords
+  let sev = 0;
+  const lower = rxTerms.map(t => t.toLowerCase());
+  for (const t of lower) {
+    if (SEVERITY_HIGH.some(k => t.includes(k))) sev += 2;
+    else if (SEVERITY_MOD.some(k => t.includes(k))) sev += 1;
+  }
+  sev = Math.min(sev, 6);
+
+  const score = Math.min(vol + sev, 10);
+
+  let color, label, labelColor;
+  if (score <= 3)      { color = 'var(--green)'; label = 'Low Concern';      labelColor = 'var(--green)'; }
+  else if (score <= 6) { color = 'var(--amber)'; label = 'Moderate Concern'; labelColor = 'var(--amber)'; }
+  else                 { color = 'var(--red)';   label = 'High Concern';     labelColor = 'var(--red)'; }
+
+  const factors = [];
+  if (vol === 0) factors.push('Very few FAERS co-administration reports on record');
+  else if (vol === 1) factors.push('A small number of FAERS co-administration reports');
+  else if (vol === 2) factors.push('Moderate volume of FAERS co-administration reports');
+  else if (vol === 3) factors.push('High volume of FAERS co-administration reports');
+  else factors.push('Very high volume of FAERS co-administration reports');
+
+  const highHits = rxTerms.filter(t => SEVERITY_HIGH.some(k => t.toLowerCase().includes(k)));
+  const modHits  = rxTerms.filter(t => SEVERITY_MOD.some(k => t.toLowerCase().includes(k)));
+  if (highHits.length) factors.push(`Severe reactions in top reports: ${highHits.join(', ')}`);
+  if (modHits.length)  factors.push(`Serious reactions in top reports: ${modHits.join(', ')}`);
+  if (!highHits.length && !modHits.length) factors.push('No severe or serious reaction keywords found in top reports');
+
+  return { score, vol, sev, color, label, labelColor, factors };
+}
+
+function signalLevel(count) {
+  if (count < 50)   return { label: 'Weak Signal',     cls: 'sig-low',  desc: 'Relatively few reports on record. This combination may be rarely co-prescribed, rarely reported to FAERS, or both.' };
+  if (count < 500)  return { label: 'Moderate Signal', cls: 'sig-mod',  desc: 'A moderate number of reports. This combination appears in FAERS with some regularity and may be worth noting clinically.' };
+  return             { label: 'Strong Signal',          cls: 'sig-high', desc: 'A substantial number of reports. This is a well-documented combination in FAERS, suggesting it is frequently co-prescribed.' };
+}
+
+function renderCoAdmin({ total, reactions }, drugA, drugB) {
+  const el = document.getElementById('coadmin-body');
+  document.getElementById('coadmin-drugs').textContent = `${drugA} + ${drugB}`;
+
+  if (total.status === 'rejected') {
+    const is404 = total.reason.message === '404';
+    el.innerHTML = `<p class="${is404 ? 'empty' : 'err'}">${is404 ? `No co-administration reports found in FAERS for this drug combination.` : errMsg(total.reason)}</p>`;
+    return;
+  }
+
+  const count = total.value?.meta?.results?.total ?? 0;
+  if (!count) {
+    el.innerHTML = '<p class="empty">No co-administration reports found in FAERS for this drug combination.</p>';
+    return;
+  }
+
+  let rxHTML = '';
+  if (reactions.status === 'fulfilled' && reactions.value?.results?.length) {
+    const items = reactions.value.results;
+    const max = items[0].count;
+    rxHTML = `<div class="mini-label">Top Co-administration Reactions</div>
+      <div class="bar-chart">${items.map(r => `
+        <div class="bar-row">
+          <div class="bar-label">${r.term}</div>
+          <div class="bar-track">
+            <div class="bar-wrap"><div class="bar-fill" style="width:${(r.count/max*100).toFixed(1)}%"></div></div>
+            <span class="bar-count">${r.count.toLocaleString()}</span>
+          </div>
+        </div>`).join('')}</div>`;
+  }
+
+  const sig = signalLevel(count);
+  const rxTerms = reactions.status === 'fulfilled' ? (reactions.value?.results || []).map(r => r.term) : [];
+  const topRx = rxTerms[0] || null;
+  const ds = dangerScore(count, rxTerms);
+
+  const pips = Array.from({length: 10}, (_, i) => {
+    const filled = i < ds.score;
+    const cls = filled ? (i < 4 ? 'on-low' : i < 7 ? 'on-mid' : 'on-high') : '';
+    return `<div class="pip ${cls}"></div>`;
+  }).join('');
+
+  const dangerHTML = `
+    <div class="danger-block">
+      <div class="danger-score-wrap">
+        <div class="danger-num" style="color:${ds.color}">${ds.score}</div>
+        <div class="danger-denom">OUT OF 10</div>
+        <div class="danger-pips">${pips}</div>
+      </div>
+      <div class="danger-detail">
+        <div class="danger-label" style="color:${ds.labelColor}">${ds.label} — FAERS-Derived Risk Indicator</div>
+        <ul class="danger-factors">${ds.factors.map(f => `<li>${f}</li>`).join('')}</ul>
+        <div class="danger-caveat">Score is heuristic only: volume (0–4 pts) + reaction severity keywords (0–6 pts). Not a clinical risk assessment.</div>
+      </div>
+    </div>`;
+
+  const interpHTML = `
+    <div class="interp-box">
+      <div class="interp-header">
+        <span class="interp-title">How to interpret this</span>
+        <span class="sig-badge ${sig.cls}">${sig.label}</span>
+      </div>
+      <div class="interp-body">
+        <p>${sig.desc}</p>
+        ${topRx ? `<p>The most commonly reported reaction in co-administration cases is <strong>${topRx}</strong>. When this reaction appears prominently alongside both drugs, it may suggest a shared adverse effect or a potential interaction worth flagging — though it does not confirm causation.</p>` : ''}
+        <p><strong>What these reports represent:</strong> These figures come from FDA's Adverse Event Reporting System (FAERS), a voluntary post-market surveillance database. Each report documents an adverse event that occurred while a patient was taking one or more drugs. Reports are submitted by healthcare providers, patients, and manufacturers — and are not systematically verified.</p>
+        <p><strong>Correlation ≠ causation.</strong> A high co-administration count often reflects how commonly two drugs are prescribed together in the general population, not that the combination is inherently dangerous. A drug pair used by millions will naturally accumulate more reports than one used by thousands, regardless of risk.</p>
+        <p><strong>Underreporting is the norm.</strong> FAERS captures only a fraction of actual adverse events. A low count does not mean a combination is safe — it may simply mean reactions go unreported, or that the drugs are rarely prescribed together.</p>
+        <p>Use this data as a starting point for further investigation, not a clinical conclusion. Consult a pharmacist, prescriber, or a formal drug interaction database (e.g. Lexicomp, Micromedex) to assess real interaction risk for a specific patient.</p>
+      </div>
+    </div>`;
+
+  el.innerHTML = `
+    <div class="coadmin-stat">${count.toLocaleString()}</div>
+    <div class="coadmin-sub">co-administration reports found in FAERS</div>
+    ${dangerHTML}
+    ${rxHTML}
+    ${interpHTML}`;
+}
+
+// ── COMPARE ───────────────────────────────────────────────────────────────────
+async function runCompare() {
+  const drugA = document.getElementById('inp-a').value.trim();
+  const drugB = document.getElementById('inp-b').value.trim();
+  if (!drugA || !drugB) return;
+
+  // Show panels with skeletons
+  document.getElementById('results').style.display = 'grid';
+  document.getElementById('coadmin').style.display = 'block';
+  document.getElementById('name-a').textContent = drugA;
+  document.getElementById('name-b').textContent = drugB;
+  document.getElementById('coadmin-body').innerHTML = skel(3);
+  document.getElementById('coadmin-drugs').textContent = '';
+
+  ['a','b'].forEach(d => {
+    ['events','recalls','label'].forEach(tab => {
+      document.getElementById(`${d}-${tab}`).innerHTML = skel(7);
+    });
+    // Reset to first tab
+    const col = document.getElementById(`col-${d}`);
+    col.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', i===0));
+    col.querySelectorAll('.tab-pane').forEach((p,i) => p.classList.toggle('active', i===0));
+  });
+
+  const btn = document.getElementById('cmp-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Comparing...';
+
+  const [evA, evB, rcA, rcB, lbA, lbB] = await Promise.allSettled([
+    fetchEvents(drugA), fetchEvents(drugB),
+    fetchRecalls(drugA), fetchRecalls(drugB),
+    fetchLabel(drugA), fetchLabel(drugB),
+  ]);
+
+  const coAdmin = await fetchCoAdmin(drugA, drugB)
+    .catch(e => ({ total: {status:'rejected', reason:e}, reactions: {status:'rejected', reason:e} }));
+
+  renderEvents(evA, 'a'); renderEvents(evB, 'b');
+  renderRecalls(rcA, 'a'); renderRecalls(rcB, 'b');
+  renderLabel(lbA, 'a'); renderLabel(lbB, 'b');
+  renderCoAdmin(coAdmin, drugA, drugB);
+
+  btn.disabled = false;
+  btn.textContent = 'Compare Drugs';
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+setupAC('inp-a', 'drop-a');
+setupAC('inp-b', 'drop-b');
+document.getElementById('inp-a').value = 'Warfarin';
+document.getElementById('inp-b').value = 'Ibuprofen';
+runCompare();
+</script>
+</body>
+</html>
